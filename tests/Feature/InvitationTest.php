@@ -15,7 +15,7 @@ class InvitationTest extends TestCase {
  use RefreshDatabase;
  private function event(): Event {$u=User::create(['name'=>'Host','email'=>uniqid().'@example.com','password'=>'passwordlong']);return Event::create(['user_id'=>$u->id,'title'=>'Gala','host'=>'HTAF','description'=>'Welcome','starts_at'=>now()->addDays(30),'rsvp_deadline'=>now()->addDays(20),'venue'=>'Mwanza']);}
  private function guest(Event $e): Invitee {return $e->invitees()->create(['name'=>'Guest','email'=>'guest@example.com','identity_key'=>hash('sha256','guest@example.com'),'token'=>str_repeat('a',64),'max_guests'=>2]);}
- public function test_organiser_cannot_access_another_event(): void {$e=$this->event();$other=User::create(['name'=>'Other','email'=>'other@example.com','password'=>'passwordlong']);$this->actingAs($other)->get('/events/'.$e->id)->assertForbidden();$this->actingAs($other)->post('/events/'.$e->id.'/send',['channels'=>['email'],'consent'=>1])->assertForbidden();}
+ public function test_organiser_cannot_access_another_event(): void {$e=$this->event();$other=User::create(['name'=>'Other','email'=>'other@example.com','password'=>'passwordlong']);$this->actingAs($other)->get(route('events.show',$e))->assertForbidden();$this->actingAs($other)->post(route('events.send',$e),['channels'=>['email'],'consent'=>1])->assertForbidden();}
  public function test_rsvp_limits_and_decline(): void {$g=$this->guest($this->event());$url='/rsvp/'.$g->token;$this->post($url,['rsvp_status'=>'accepted','attending_count'=>3])->assertSessionHasErrors('attending_count');$this->post($url,['rsvp_status'=>'accepted','attending_count'=>2])->assertRedirect();$this->assertDatabaseHas('invitees',['id'=>$g->id,'attending_count'=>2]);$this->post($url,['rsvp_status'=>'declined'])->assertRedirect();$this->assertDatabaseHas('invitees',['id'=>$g->id,'rsvp_status'=>'declined','attending_count'=>0]);}
  public function test_expired_links_reject_changes(): void {$e=$this->event();$e->update(['rsvp_deadline'=>now()->subDay()]);$g=$this->guest($e);$this->post('/rsvp/'.$g->token,['rsvp_status'=>'accepted','attending_count'=>1])->assertStatus(410);$this->get('/rsvp/unknown')->assertNotFound();}
  public function test_import_reports_duplicates_and_invalid_phone(): void {$e=$this->event();$path=tempnam(sys_get_temp_dir(),'guests');file_put_contents($path,"name,email,phone,max_guests\nGuest,guest@example.com,,2\nRepeat,guest@example.com,,1\nInvalid,,0784311111,1\n");$f=new UploadedFile($path,'guests.csv','text/csv',null,true);$report=app(GuestImporter::class)->import($f,$e);$this->assertSame(1,$report['imported']);$this->assertSame(1,$report['duplicates']);$this->assertCount(1,$report['errors']);unlink($path);}
@@ -83,17 +83,24 @@ class InvitationTest extends TestCase {
   $event=$this->event();$organiser=User::findOrFail($event->user_id);$selected=$this->guest($event);
   $unselected=$event->invitees()->create(['name'=>'Other','email'=>'other-guest@example.com','identity_key'=>hash('sha256','other-guest@example.com'),'token'=>str_repeat('b',64),'max_guests'=>1]);
   $delivery=Delivery::create(['invitee_id'=>$selected->id,'channel'=>'email','status'=>'submitted','provider_id'=>'old-id']);
-  $this->actingAs($organiser)->post('/events/'.$event->id.'/send',['guest_ids'=>[$selected->id],'channels'=>['email'],'consent'=>1])->assertRedirect()->assertSessionHas('success');
+  $this->actingAs($organiser)->post(route('events.send',$event),['guest_ids'=>[$selected->id],'channels'=>['email'],'consent'=>1])->assertRedirect()->assertSessionHas('success');
   $this->assertDatabaseHas('deliveries',['id'=>$delivery->id,'status'=>'queued','provider_id'=>null]);
   $this->assertDatabaseMissing('deliveries',['invitee_id'=>$unselected->id]);
   Queue::assertPushed(SendInvitation::class,fn(SendInvitation $job)=>$job->deliveryId===$delivery->id);
  }
  public function test_send_requires_a_selected_guest(): void {
   $event=$this->event();$organiser=User::findOrFail($event->user_id);
-  $this->actingAs($organiser)->post('/events/'.$event->id.'/send',['channels'=>['email'],'consent'=>1])->assertSessionHasErrors('guest_ids');
+  $this->actingAs($organiser)->post(route('events.send',$event),['channels'=>['email'],'consent'=>1])->assertSessionHasErrors('guest_ids');
  }
  public function test_custom_sms_always_includes_confirmation_link(): void {
   $event=$this->event();$event->update(['sms_template'=>'Welcome {guest_name} to {event_title}.']);$guest=$this->guest($event);
   $this->assertStringContainsString($guest->rsvpUrl(),InvitationTemplate::sms($guest,$event));
+ }
+ public function test_event_urls_use_uuid_instead_of_database_id(): void {
+  $event=$this->event();$organiser=User::findOrFail($event->user_id);$url=route('events.show',$event);
+  $this->assertStringContainsString('/events/'.$event->uuid,$url);
+  $this->assertNotSame('/events/'.$event->id,parse_url($url,PHP_URL_PATH));
+  $this->actingAs($organiser)->get('/events/'.$event->id)->assertNotFound();
+  $this->actingAs($organiser)->get($url)->assertOk();
  }
 }

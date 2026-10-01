@@ -35,9 +35,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/events/{event}/guests/{guest}/edit', [GuestController::class, 'edit'])->name('events.guests.edit');
     Route::put('/events/{event}/guests/{guest}', [GuestController::class, 'update'])->name('events.guests.update');
     Route::delete('/events/{event}/guests/{guest}', [GuestController::class, 'destroy'])->name('events.guests.destroy');
-    Route::post('/events/{event}/import', [EventController::class, 'import'])->middleware('throttle:10,1');
-    Route::post('/events/{event}/send', [EventController::class, 'send'])->middleware('throttle:5,1');
-    Route::get('/events/{event}/export', [EventController::class, 'export']);
+    Route::post('/events/{event}/import', [EventController::class, 'import'])->middleware('throttle:10,1')->name('events.import');
+    Route::post('/events/{event}/send', [EventController::class, 'send'])->middleware('throttle:5,1')->name('events.send');
+    Route::get('/events/{event}/export', [EventController::class, 'export'])->name('events.export');
 });
 
 Route::get('/rsvp/{token}', [RsvpController::class, 'show'])->middleware('throttle:60,1')->name('rsvp.show');
