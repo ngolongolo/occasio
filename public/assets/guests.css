@@ -11,3 +11,20 @@
 .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 28px; }
 .sr-only { border: 0; clip: rect(0, 0, 0, 0); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; white-space: nowrap; width: 1px; }
 @media (max-width: 800px) { .form-grid { grid-template-columns: 1fr; } .section-toolbar { align-items: flex-start; } }
+.page-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.design-form { display: grid; gap: 28px; }
+.design-form section { border-bottom: 1px solid var(--line); padding-bottom: 26px; }
+.design-form section:last-of-type { border-bottom: 0; }
+.design-form code { background: #f3ece2; border-radius: 4px; padding: 2px 5px; }
+.color-field { align-items: center; display: flex; gap: 14px; }
+.color-field input[type=color] { cursor: pointer; height: 48px; padding: 4px; width: 76px; }
+.check-row { align-items: center; display: flex; gap: 7px; }
+@media (max-width: 800px) { .page-actions { justify-content: flex-start; } }
+.response-toast { align-items: flex-start; border: 1px solid; border-radius: 10px; box-shadow: 0 12px 34px #30252a24; display: flex; gap: 20px; justify-content: space-between; left: 50%; max-width: min(620px, calc(100% - 32px)); padding: 15px 18px; position: fixed; top: 18px; transform: translateX(-50%); width: max-content; z-index: 1001; }
+.response-toast.is-success { background: #edf7ed; border-color: #b8d8b9; color: #295c2c; }
+.response-toast.is-error { background: #fff0f1; border-color: #e7bdc2; color: #8a2532; }
+.response-toast button { background: transparent; border: 0; color: inherit; font-size: 22px; line-height: 1; padding: 0; }
+.submit-loader { align-items: center; background: #30252ab8; color: white; display: flex; flex-direction: column; gap: 14px; inset: 0; justify-content: center; position: fixed; z-index: 1000; }
+.submit-loader[hidden] { display: none; }
+.spinner { animation: spin .75s linear infinite; border: 4px solid #ffffff55; border-radius: 50%; border-top-color: #fff; height: 46px; width: 46px; }
+@keyframes spin { to { transform: rotate(360deg); } }
