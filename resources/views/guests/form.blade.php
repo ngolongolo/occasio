@@ -1,5 +1,5 @@
 @extends('layout')
-@section('title', ($guest->exists ? 'Edit guest' : 'Add guest').' · Occasio')
+@section('title', ($guest->exists ? 'Edit guest' : 'Add guest').' · Okesheni')
 @section('content')
 <main class="page">
     <div class="page-head">

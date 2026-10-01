@@ -7,10 +7,9 @@ use App\Http\Controllers\RsvpController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing')->name('home');
-Route::view('/htaf-sample', 'sample')->name('sample');
 Route::get('/guest-template', fn () => response()->download(
     base_path('samples/guest-import.xlsx'),
-    'occasio-guest-import-template.xlsx',
+    'okesheni-guest-import-template.xlsx',
     ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
 ))->name('guest-template');
 

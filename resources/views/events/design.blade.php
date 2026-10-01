@@ -1,5 +1,5 @@
 @extends('layout')
-@section('title', 'Invitation design · Occasio')
+@section('title', 'Invitation design · Okesheni')
 @section('content')
 <main class="page">
     <div class="page-head"><div><span class="eyebrow">{{ $event->title }}</span><h1>Invitation design</h1><p>Tailor email branding, attach your designed card, and write the SMS sent to guests.</p></div><a class="btn secondary" href="{{ route('events.show', $event) }}">← Event</a></div>

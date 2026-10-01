@@ -52,7 +52,7 @@ class InvitationTest extends TestCase {
   $this->assertDatabaseHas('invitees',['id'=>$guest->id]);
  }
  public function test_guest_import_template_downloads(): void {
-  $this->get(route('guest-template'))->assertOk()->assertDownload('occasio-guest-import-template.xlsx');
+  $this->get(route('guest-template'))->assertOk()->assertDownload('okesheni-guest-import-template.xlsx');
  }
  public function test_organiser_can_save_branding_card_and_sms_template(): void {
   Storage::fake('local');
@@ -107,5 +107,9 @@ class InvitationTest extends TestCase {
   $this->assertNotSame('/events/'.$event->id,parse_url($url,PHP_URL_PATH));
   $this->actingAs($organiser)->get('/events/'.$event->id)->assertNotFound();
   $this->actingAs($organiser)->get($url)->assertOk();
+ }
+ public function test_professional_landing_page_has_client_and_partner_sections(): void {
+  $this->get('/')->assertOk()->assertSee('Corporate event operations, simplified')->assertSee('Okesheni')->assertSee('/assets/images/conference.png',false)->assertSee('/assets/images/networking.png',false)->assertSee('/assets/images/award.png',false)->assertSee('Clients')->assertSee('Partners')->assertDontSee('HTAF');
+  $this->get('/htaf-sample')->assertNotFound();
  }
 }

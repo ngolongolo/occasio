@@ -35,3 +35,4 @@
 .palette-preview p { color: inherit; }
 .palette-preview span { background: var(--preview-accent); border-radius: 6px; color: #fff; display: inline-block; padding: 10px 16px; }
 @media (max-width: 600px) { .palette-grid { grid-template-columns: 1fr; } }
+.auth-brand { display:block; height:84px; margin:0 auto 12px; object-fit:contain; width:84px; }

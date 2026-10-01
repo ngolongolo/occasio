@@ -1,6 +1,6 @@
-# Occasio
+# Okesheni
 
-A Laravel 12 invitation application with organiser accounts, event creation, XLSX/CSV guest imports, private RSVP links, queue-based email/SMS/WhatsApp submissions and response exports. Responsive ivory, plum and champagne design. HTAF sample invitation included.
+A Laravel 12 invitation application with organiser accounts, event creation, XLSX/CSV guest imports, private RSVP links, queue-based email/SMS/WhatsApp submissions and response exports.
 
 ## Install
 
@@ -21,7 +21,7 @@ In a second terminal:
 php artisan queue:work --tries=1 --timeout=60
 ```
 
-Visit http://localhost:8000 and register. For an optional HTAF sample event, set DEMO_EMAIL and DEMO_PASSWORD in .env then run `php artisan db:seed` outside production. No default passwords are supplied.
+Visit http://localhost:8000 and register. For an optional demonstration event, set DEMO_EMAIL and DEMO_PASSWORD in .env then run `php artisan db:seed` outside production. No default passwords are supplied.
 
 ## Guest import
 
@@ -47,7 +47,7 @@ Use HTTPS, APP_ENV=production, APP_DEBUG=false and SESSION_SECURE_COOKIE=true. C
 
 ## Design assets
 
-public/assets/logo.svg is the editable Occasio mark. public/assets/gala-hero.png is AI-generated event imagery, not a photograph of HTAF or Malaika Beach Resort. branding contains the HTAF print invitation and static landing preview. The HTAF reference gives contradictory cocktail/end times, so only the unambiguous 5:30 PM start is used. The heart motif is decorative, not an official HTAF logo.
+The Okesheni logo variants and favicon are stored in `public/assets/logo`. Public landing assets are product marketing materials; client-specific source files in branding are not presented as public endorsements.
 
 ## Scope
 
