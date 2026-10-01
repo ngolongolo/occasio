@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 class Event extends Model
 {
-    protected $fillable = ['user_id', 'title', 'host', 'description', 'starts_at', 'rsvp_deadline', 'venue', 'dress_code', 'contact', 'primary_color', 'logo_path', 'invitation_card_path', 'invitation_card_name', 'invitation_card_mime', 'sms_template'];
+    protected $fillable = ['user_id', 'title', 'host', 'description', 'starts_at', 'rsvp_deadline', 'venue', 'dress_code', 'contact', 'primary_color', 'background_color', 'text_color', 'logo_path', 'invitation_card_path', 'invitation_card_name', 'invitation_card_mime', 'sms_template'];
 
     protected static function booted(): void
     {

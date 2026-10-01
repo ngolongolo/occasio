@@ -28,3 +28,10 @@
 .submit-loader[hidden] { display: none; }
 .spinner { animation: spin .75s linear infinite; border: 4px solid #ffffff55; border-radius: 50%; border-top-color: #fff; height: 46px; width: 46px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.palette-grid { display: grid; gap: 14px; grid-template-columns: repeat(3, 1fr); }
+.palette-grid label { margin-top: 4px; }
+.palette-grid input[type=color] { cursor: pointer; display: block; height: 48px; margin-top: 7px; padding: 4px; width: 100%; }
+.palette-preview { background: var(--preview-background); border: 1px solid var(--preview-accent); border-radius: 10px; color: var(--preview-text); margin: 22px 0; padding: 26px; text-align: center; }
+.palette-preview p { color: inherit; }
+.palette-preview span { background: var(--preview-accent); border-radius: 6px; color: #fff; display: inline-block; padding: 10px 16px; }
+@media (max-width: 600px) { .palette-grid { grid-template-columns: 1fr; } }

@@ -61,6 +61,8 @@ class EventController
         $this->own($event);
         $data = $request->validate([
             'primary_color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'background_color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'text_color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg', 'max:2048'],
             'invitation_card' => ['nullable', 'file', 'mimes:pdf,png', 'max:10240'],
             'sms_template' => ['required', 'string', 'max:1000'],
