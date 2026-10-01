@@ -1,0 +1,1 @@
+@if(session('success'))<div class="notice">{{ session('success') }}</div>@endif @if($errors->any())<div class="error">@foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach</div>@endif @if(session('import_errors'))<div class="error">@foreach(session('import_errors') as $error)<div>{{ $error }}</div>@endforeach</div>@endif

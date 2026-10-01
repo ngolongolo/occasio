@@ -1,0 +1,13 @@
+.section-toolbar { align-items: center; display: flex; gap: 20px; justify-content: space-between; margin-top: 34px; }
+.section-toolbar h3 { margin: 0; }
+.row-actions { display: flex; gap: 7px; justify-content: flex-end; }
+.row-actions form { margin: 0; }
+.icon-btn { background: #fff; border: 1px solid #d4c5c9; border-radius: 7px; color: var(--plum); cursor: pointer; display: inline-grid; font: 700 18px/1 Arial; height: 36px; padding: 0; place-items: center; width: 36px; }
+.icon-btn:hover { background: #f4e9ee; }
+.icon-btn.danger { border-color: #e7c8cc; color: #9a2534; }
+.icon-btn.danger:hover { background: #fae8e8; }
+.guest-form { margin: 0 auto; max-width: 720px; }
+.form-grid { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; }
+.form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 28px; }
+.sr-only { border: 0; clip: rect(0, 0, 0, 0); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; white-space: nowrap; width: 1px; }
+@media (max-width: 800px) { .form-grid { grid-template-columns: 1fr; } .section-toolbar { align-items: flex-start; } }

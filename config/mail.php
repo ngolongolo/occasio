@@ -1,0 +1,1 @@
+<?php return ['default'=>env('MAIL_MAILER','log'),'mailers'=>['log'=>['transport'=>'log'],'smtp'=>['transport'=>'smtp','scheme'=>env('MAIL_SCHEME'),'host'=>env('MAIL_HOST'),'port'=>env('MAIL_PORT',587),'username'=>env('MAIL_USERNAME'),'password'=>env('MAIL_PASSWORD'),'timeout'=>20]],'from'=>['address'=>env('MAIL_FROM_ADDRESS'),'name'=>env('MAIL_FROM_NAME','Occasio')]];

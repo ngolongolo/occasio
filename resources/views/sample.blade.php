@@ -1,0 +1,3 @@
+@extends('layout')
+@section('title','HTAF Gala Dinner · Occasio')
+@section('content')<div class="sample-wrap">@include('partials.htaf-card')<p class="muted no-print" style="text-align:center">Design sample. Personal RSVP links are created when guests are imported.</p><div class="actions no-print" style="justify-content:center"><button onclick="window.print()">Print invitation</button><a class="btn secondary" href="/register">Create an event</a></div></div>@endsection
