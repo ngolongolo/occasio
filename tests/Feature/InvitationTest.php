@@ -134,4 +134,16 @@ class InvitationTest extends TestCase {
   $event=$this->event();$organiser=User::findOrFail($event->user_id);
   $this->actingAs($organiser)->get(route('events.show',$event))->assertOk()->assertSee($event->registrationUrl())->assertDontSee('/join/'.$event->id.'"',false);
  }
+ public function test_guest_list_can_be_paginated_and_filtered(): void {
+  $event=$this->event();$organiser=User::findOrFail($event->user_id);
+  foreach(range(1,26) as $number){
+   $email='guest'.$number.'@example.com';
+   $guest=$event->invitees()->create(['name'=>($number<=3?'VIP Guest ':'Guest ').$number,'email'=>$email,'identity_key'=>hash('sha256',$email),'token'=>str_pad((string)$number,64,'x'),'max_guests'=>1,'rsvp_status'=>$number<=3?'accepted':'pending','attending_count'=>$number<=3?1:0]);
+   if($number===1)Delivery::create(['invitee_id'=>$guest->id,'channel'=>'email','status'=>'submitted']);
+  }
+  $this->actingAs($organiser)->get(route('events.show',$event).'?per_page=10')
+   ->assertOk()->assertViewHas('invitees',fn($guests)=>$guests->count()===10&&$guests->total()===26&&$guests->lastPage()===3)->assertSee('Next');
+  $this->actingAs($organiser)->get(route('events.show',$event).'?q=VIP&rsvp=accepted&delivery=not_sent&per_page=10')
+   ->assertOk()->assertViewHas('invitees',fn($guests)=>$guests->total()===2)->assertSee('VIP Guest 2')->assertDontSee('VIP Guest 1');
+ }
 }

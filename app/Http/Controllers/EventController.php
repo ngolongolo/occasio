@@ -35,12 +35,34 @@ class EventController
         return redirect()->route('events.show', $event);
     }
 
-    public function show(Event $event)
+    public function show(Request $request, Event $event)
     {
         $this->own($event);
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'rsvp' => ['nullable', 'in:pending,accepted,declined'],
+            'delivery' => ['nullable', 'in:not_sent,queued,previewed,submitted,failed'],
+            'per_page' => ['nullable', 'integer', 'in:10,25,50,100'],
+        ]);
+        $query = $event->invitees()->with('deliveries')->orderBy('name');
+        if (! empty($filters['q'])) {
+            $search = trim($filters['q']);
+            $query->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+        if (! empty($filters['rsvp'])) $query->where('rsvp_status', $filters['rsvp']);
+        if (($filters['delivery'] ?? null) === 'not_sent') {
+            $query->doesntHave('deliveries');
+        } elseif (! empty($filters['delivery'])) {
+            $query->whereHas('deliveries', fn ($delivery) => $delivery->where('status', $filters['delivery']));
+        }
         return view('events.show', [
             'event' => $event,
-            'invitees' => $event->invitees()->with('deliveries')->orderBy('name')->paginate(50),
+            'invitees' => $query->paginate((int) ($filters['per_page'] ?? 25))->withQueryString(),
+            'filters' => $filters,
             'stats' => [
                 'total' => $event->invitees()->count(),
                 'accepted' => $event->invitees()->where('rsvp_status', 'accepted')->count(),

@@ -41,3 +41,20 @@
 .public-registration { background:var(--event-background); color:var(--event-text); display:grid; gap:34px; grid-template-columns:1fr 1fr; margin:30px auto; max-width:1040px; padding:28px; }
 .registration-event { border:1px solid var(--event-primary); border-radius:16px; padding:46px; }.registration-event h1 { color:var(--event-text); font-size:48px; }.registration-event>p { color:var(--event-text); opacity:.78; }.registration-kicker { font-size:12px; letter-spacing:2px; text-transform:uppercase; }.registration-facts { border-block:1px solid color-mix(in srgb,var(--event-primary) 30%,transparent); margin:30px 0; }.registration-facts div { padding:16px 0; }.registration-facts div+div { border-top:1px solid color-mix(in srgb,var(--event-primary) 18%,transparent); }.registration-facts small,.registration-facts strong { display:block; }.registration-facts small { opacity:.65; text-transform:uppercase; font-size:9px; letter-spacing:1px; }.registration-form h2 { font-size:38px; }.registration-form form>button { background:var(--event-primary); border-color:var(--event-primary); margin-top:22px; width:100%; }
 @media(max-width:800px){.share-registration,.public-registration{grid-template-columns:1fr}.share-link>div{flex-wrap:wrap}.share-link input{flex-basis:100%}.registration-event{padding:30px}.registration-event h1{font-size:38px}}
+.guest-result-count { margin: 5px 0 0; }
+.guest-filters { align-items: end; display: grid; gap: 14px; grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(135px, .75fr)) auto; margin: 18px 0; padding: 18px; }
+.guest-filters label { font-size: 12px; margin: 0 0 6px; }
+.guest-filters input,.guest-filters select { margin: 0; width: 100%; }
+.filter-actions { display: flex; gap: 8px; }
+.filter-actions .btn,.filter-actions button { padding: 12px 15px; white-space: nowrap; }
+.pagination { align-items: center; display: flex; gap: 14px; justify-content: space-between; margin-top: 22px; }
+.pagination a,.pagination-current,.pagination-disabled,.pagination-gap { align-items: center; border: 1px solid #d4c5c9; border-radius: 7px; display: inline-flex; justify-content: center; min-height: 38px; min-width: 38px; padding: 7px 10px; }
+.pagination a:hover { background: #f4e9ee; }
+.pagination-current { background: var(--plum); border-color: var(--plum); color: #fff; }
+.pagination-disabled,.pagination-gap { border-color: transparent; color: #8a7d81; }
+.pagination-pages { display: flex; gap: 6px; }
+@media(max-width:980px){.guest-filters{grid-template-columns:1fr 1fr}.filter-search,.filter-actions{grid-column:span 2}.filter-actions{justify-content:flex-end}}
+@media(max-width:600px){.guest-filters{grid-template-columns:1fr}.filter-search,.filter-actions{grid-column:auto}.filter-actions{justify-content:stretch}.filter-actions>*{flex:1}.pagination-pages{display:none}}
+@media(max-width:720px){
+ .guest-table-wrap{overflow:visible}.guest-table,.guest-table tbody{display:block;background:transparent}.guest-table thead{display:none}.guest-table tr{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 7px 20px #30252a0a;display:grid;grid-template-columns:1fr 1fr;margin-bottom:14px;overflow:hidden;padding:14px;position:relative}.guest-table td{border:0;display:block;min-width:0;padding:9px 10px}.guest-table td::before{color:var(--muted);content:attr(data-label);display:block;font-size:10px;font-weight:700;letter-spacing:.08em;margin-bottom:3px;text-transform:uppercase}.guest-table .guest-select{position:absolute;right:16px;top:16px}.guest-table .guest-select input{height:20px;margin:0;width:20px}.guest-table .guest-identity{grid-column:1/-1;padding-right:48px}.guest-table .guest-identity::before,.guest-table .guest-select::before,.guest-table .guest-actions::before{display:none}.guest-table .guest-identity strong{font-size:17px}.guest-table .guest-actions{border-top:1px solid var(--line);grid-column:1/-1;margin-top:5px;padding-top:13px}.guest-table .row-actions{justify-content:flex-start}.guest-table tbody tr:only-child td[colspan]{grid-column:1/-1}.guest-table tbody tr:only-child td[colspan]::before{display:none}
+}
