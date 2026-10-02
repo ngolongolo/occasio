@@ -7,6 +7,7 @@
     </div>
     @include('partials.alerts')
     <div class="stats">@foreach(['total'=>'Invited','accepted'=>'Confirmed','declined'=>'Declined','seats'=>'Seats confirmed'] as $key=>$label)<div class="panel"><span class="muted">{{ $label }}</span><strong>{{ $stats[$key] }}</strong></div>@endforeach</div>
+    <section class="panel share-registration"><div><span class="eyebrow">Open event registration</span><h3>Share one link with any guest</h3><p>Registered guests can update their attendance, while new guests can add their details and confirm their place.</p></div><div class="share-link"><label for="registration-link">Public registration link</label><div><input id="registration-link" value="{{ $event->registrationUrl() }}" readonly><button type="button" id="copy-registration-link">Copy link</button><button type="button" class="btn secondary" id="share-registration-link">Share</button></div><small id="copy-status" aria-live="polite"></small></div></section>
     <div class="two">
         <section class="panel"><h3>Import your guests</h3><p class="muted">Download the sample, add your guests without changing its column names, then upload Excel or CSV. Up to 5,000 guests · max 5 MB.</p><a class="btn secondary small" href="{{ route('guest-template') }}">Download sample file ↓</a><form method="post" action="{{ route('events.import', $event) }}" enctype="multipart/form-data">@csrf<label for="guest-file">Completed guest list</label><input id="guest-file" type="file" name="file" accept=".xlsx,.xls,.csv" required><button style="margin-top:15px">Import guest list</button></form></section>
         <section class="panel"><h3>Send invitations</h3><p class="muted">Select guests from the list below, choose channels, then send. Selecting a guest who already received an invitation will resend it.</p><form id="send-invitations-form" method="post" action="{{ route('events.send', $event) }}">@csrf @foreach(['email'=>'Email','whatsapp'=>'WhatsApp','sms'=>'SMS'] as $key=>$label)<label><input type="checkbox" name="channels[]" value="{{ $key }}">{{ $label }}</label>@endforeach<label><input type="checkbox" name="consent" value="1" required>I have permission to contact these guests.</label><button>Send / resend selected ↗</button></form></section>
@@ -20,4 +21,11 @@
     </table></div>
     <div style="margin-top:20px">{{ $invitees->links() }}</div>
 </div>
+<script>
+    (function () {
+        const input=document.getElementById('registration-link'),copy=document.getElementById('copy-registration-link'),share=document.getElementById('share-registration-link'),status=document.getElementById('copy-status');
+        copy.addEventListener('click',async function(){try{await navigator.clipboard.writeText(input.value);}catch(error){input.select();document.execCommand('copy');}status.textContent='Registration link copied.';setTimeout(function(){status.textContent='';},3000);});
+        if(!navigator.share){share.hidden=true;}else share.addEventListener('click',function(){navigator.share({title:@json($event->title),text:'Register and confirm your attendance for '+@json($event->title),url:input.value});});
+    }());
+</script>
 @endsection

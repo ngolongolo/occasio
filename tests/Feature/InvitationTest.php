@@ -112,4 +112,26 @@ class InvitationTest extends TestCase {
   $this->get('/')->assertOk()->assertSee('Corporate event operations, simplified')->assertSee('Okesheni')->assertSee('/assets/images/conference.png',false)->assertSee('/assets/images/networking.png',false)->assertSee('/assets/images/award.png',false)->assertSee('Clients')->assertSee('Partners')->assertDontSee('HTAF');
   $this->get('/htaf-sample')->assertNotFound();
  }
+ public function test_public_event_link_registers_a_new_guest_and_confirms_attendance(): void {
+  $event=$this->event();$url=route('events.registration.show',$event->registration_token);
+  $this->get($url)->assertOk()->assertSee($event->title)->assertSee('Confirm your place');
+  $this->post($url,['name'=>'Public Guest','email'=>'PUBLIC@example.com','phone'=>'+255 784 000 111','rsvp_status'=>'accepted','attending_count'=>2,'dietary'=>'Vegetarian'])->assertRedirect()->assertSessionHas('success');
+  $this->assertDatabaseHas('invitees',['event_id'=>$event->id,'name'=>'Public Guest','email'=>'public@example.com','phone'=>'+255784000111','rsvp_status'=>'accepted','attending_count'=>2,'max_guests'=>2,'dietary'=>'Vegetarian']);
+ }
+ public function test_public_event_link_updates_an_existing_registered_guest(): void {
+  $event=$this->event();$guest=$this->guest($event);$url=route('events.registration.show',$event->registration_token);
+  $this->post($url,['name'=>'Guest Updated','email'=>$guest->email,'rsvp_status'=>'declined','dietary'=>''])->assertRedirect()->assertSessionHas('success');
+  $this->assertSame(1,$event->invitees()->count());
+  $this->assertDatabaseHas('invitees',['id'=>$guest->id,'name'=>'Guest Updated','rsvp_status'=>'declined','attending_count'=>0]);
+ }
+ public function test_public_event_registration_rejects_expired_and_unknown_links(): void {
+  $event=$this->event();$event->update(['rsvp_deadline'=>now()->subDay()]);$url=route('events.registration.show',$event->registration_token);
+  $this->get($url)->assertOk()->assertSee('Registration has closed');
+  $this->post($url,['name'=>'Late Guest','email'=>'late@example.com','rsvp_status'=>'accepted','attending_count'=>1])->assertStatus(410);
+  $this->get('/join/'.str_repeat('x',64))->assertNotFound();
+ }
+ public function test_event_dashboard_displays_non_numeric_share_link(): void {
+  $event=$this->event();$organiser=User::findOrFail($event->user_id);
+  $this->actingAs($organiser)->get(route('events.show',$event))->assertOk()->assertSee($event->registrationUrl())->assertDontSee('/join/'.$event->id.'"',false);
+ }
 }

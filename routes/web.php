@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\EventRegistrationController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\RsvpController;
 use Illuminate\Support\Facades\Route;
@@ -12,6 +13,8 @@ Route::get('/guest-template', fn () => response()->download(
     'okesheni-guest-import-template.xlsx',
     ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
 ))->name('guest-template');
+Route::get('/join/{token}', [EventRegistrationController::class, 'show'])->middleware('throttle:60,1')->name('events.registration.show');
+Route::post('/join/{token}', [EventRegistrationController::class, 'store'])->middleware('throttle:10,1')->name('events.registration.store');
 
 Route::middleware('guest')->group(function () {
     Route::view('/login', 'auth.form', ['register' => false])->name('login');

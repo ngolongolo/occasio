@@ -13,6 +13,7 @@ class Event extends Model
     {
         static::creating(function (Event $event) {
             $event->uuid ??= (string) Str::uuid();
+            $event->registration_token ??= Str::random(64);
         });
     }
 
@@ -29,5 +30,10 @@ class Event extends Model
     public function invitees()
     {
         return $this->hasMany(Invitee::class);
+    }
+
+    public function registrationUrl(): string
+    {
+        return route('events.registration.show', $this->registration_token);
     }
 }
