@@ -21,7 +21,21 @@ class EventController
 
     public function index()
     {
-        return view('events.index', ['events' => auth()->user()->events()->withCount('invitees')->latest()->get()]);
+        $events = auth()->user()->events()->withCount([
+            'invitees',
+            'invitees as accepted_count' => fn ($query) => $query->where('rsvp_status', 'accepted'),
+            'invitees as pending_count' => fn ($query) => $query->where('rsvp_status', 'pending'),
+        ])->orderBy('starts_at')->get();
+
+        return view('events.index', [
+            'events' => $events,
+            'dashboardStats' => [
+                'events' => $events->count(),
+                'upcoming' => $events->filter(fn ($event) => ! $event->responsesClosed())->count(),
+                'invitees' => $events->sum('invitees_count'),
+                'confirmed' => $events->sum('accepted_count'),
+            ],
+        ]);
     }
 
     public function store(Request $request)

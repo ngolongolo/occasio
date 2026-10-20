@@ -16,6 +16,17 @@ class InvitationTest extends TestCase {
  use RefreshDatabase;
  private function event(): Event {$u=User::create(['name'=>'Host','email'=>uniqid().'@example.com','password'=>'passwordlong']);return Event::create(['user_id'=>$u->id,'title'=>'Gala','host'=>'HTAF','description'=>'Welcome','starts_at'=>now()->addDays(30),'rsvp_deadline'=>now()->addDays(20),'venue'=>'Mwanza']);}
  private function guest(Event $e): Invitee {return $e->invitees()->create(['name'=>'Guest','email'=>'guest@example.com','identity_key'=>hash('sha256','guest@example.com'),'token'=>str_repeat('a',64),'max_guests'=>2]);}
+ public function test_organiser_can_use_the_guided_event_creation_form(): void {
+  $organiser=User::create(['name'=>'Host','email'=>'creator@example.com','password'=>'passwordlong']);
+  $this->actingAs($organiser)->get('/events/create')->assertOk()->assertSee('Bring the occasion to life.')->assertSee('event-title')->assertSee('event-start')->assertSee('event-deadline')->assertSee('event-venue');
+  $response=$this->actingAs($organiser)->post('/events',['title'=>'Leadership Forum','host'=>'BlueTick','description'=>'Welcome to the forum.','starts_at'=>now()->addMonth()->format('Y-m-d H:i:s'),'rsvp_deadline'=>now()->addWeeks(3)->format('Y-m-d'),'venue'=>'Dar es Salaam','dress_code'=>'Business formal','contact'=>'+255784311111']);
+  $event=Event::where('title','Leadership Forum')->firstOrFail();$response->assertRedirect(route('events.show',$event));
+  $this->assertSame($organiser->id,$event->user_id);$this->assertSame('Dar es Salaam',$event->venue);
+ }
+ public function test_dashboard_summarises_the_organisers_event_portfolio(): void {
+  $event=$this->event();$organiser=User::findOrFail($event->user_id);$guest=$this->guest($event);$guest->update(['rsvp_status'=>'accepted','attending_count'=>1]);
+  $this->actingAs($organiser)->get('/dashboard')->assertOk()->assertSee('Welcome back')->assertSee($organiser->name)->assertSee('Event portfolio')->assertSee($event->title)->assertSee('1 of 1')->assertSee('Create a new event');
+ }
  public function test_organiser_cannot_access_another_event(): void {$e=$this->event();$other=User::create(['name'=>'Other','email'=>'other@example.com','password'=>'passwordlong']);$this->actingAs($other)->get(route('events.show',$e))->assertForbidden();$this->actingAs($other)->post(route('events.send',$e),['channels'=>['email'],'consent'=>1])->assertForbidden();}
  public function test_rsvp_limits_and_decline(): void {$g=$this->guest($this->event());$url='/rsvp/'.$g->token;$this->post($url,['rsvp_status'=>'accepted','attending_count'=>3])->assertSessionHasErrors('attending_count');$this->post($url,['rsvp_status'=>'accepted','attending_count'=>2])->assertRedirect();$this->assertDatabaseHas('invitees',['id'=>$g->id,'attending_count'=>2]);$this->post($url,['rsvp_status'=>'declined'])->assertRedirect();$this->assertDatabaseHas('invitees',['id'=>$g->id,'rsvp_status'=>'declined','attending_count'=>0]);}
  public function test_started_event_links_reject_changes(): void {$e=$this->event();$e->update(['starts_at'=>now()->subHour(),'rsvp_deadline'=>now()->subDay()]);$g=$this->guest($e);$this->post('/rsvp/'.$g->token,['rsvp_status'=>'accepted','attending_count'=>1])->assertStatus(410);$this->get('/rsvp/unknown')->assertNotFound();}
