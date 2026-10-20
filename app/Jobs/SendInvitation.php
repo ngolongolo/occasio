@@ -19,16 +19,21 @@ class SendInvitation implements ShouldQueue {
  if(config('mail.default')!=='smtp')throw new \RuntimeException('Configure SMTP before live email sending.');
  Mail::to($g->email,$g->name)->send(new InvitationMail($g));$d->update(['status'=>'submitted','error'=>null]);return;
  }
- $c=config('services.twilio');foreach(['sid','token'] as $key)if(empty($c[$key]))throw new \RuntimeException('Messaging credentials are not configured.');
  if($d->channel==='whatsapp'){
+ $c=config('services.twilio');foreach(['sid','token'] as $key)if(empty($c[$key]))throw new \RuntimeException('WhatsApp credentials are not configured.');
  if(empty($c['whatsapp_from'])||empty($c['content_sid']))throw new \RuntimeException('WhatsApp sender and approved content template are required.');
  $payload=['To'=>'whatsapp:'.$g->phone,'From'=>'whatsapp:'.$c['whatsapp_from'],'ContentSid'=>$c['content_sid'],'ContentVariables'=>json_encode(['1'=>$g->name,'2'=>$e->title,'3'=>$e->starts_at->format('d M Y H:i'),'4'=>$g->rsvpUrl()])];
- }else{
- if(empty($c['sms_from']))throw new \RuntimeException('SMS sender is not configured.');
- $payload=['To'=>$g->phone,'From'=>$c['sms_from'],'Body'=>InvitationTemplate::sms($g,$e)];
- }
  $response=Http::withBasicAuth($c['sid'],$c['token'])->asForm()->timeout(25)->post('https://api.twilio.com/2010-04-01/Accounts/'.$c['sid'].'/Messages.json',$payload)->throw();
- $d->update(['status'=>'submitted','provider_id'=>$response->json('sid')]);
+ $providerId=$response->json('sid');
+ }else{
+ $c=config('services.sprint_sms');foreach(['url','api_id','api_password','sender_id'] as $key)if(empty($c[$key]))throw new \RuntimeException('Sprint SMS credentials and sender are not configured.');
+ $response=Http::timeout(25)->get($c['url'],[
+ 'api_id'=>$c['api_id'],'api_password'=>$c['api_password'],'sms_type'=>'P','encoding'=>'T',
+ 'sender_id'=>$c['sender_id'],'phonenumber'=>$g->phone,'textmessage'=>InvitationTemplate::sms($g,$e),
+ ])->throw();
+ $providerId=$response->json('message_id')??$response->json('id')??$response->json('request_id');
+ }
+ $d->update(['status'=>'submitted','provider_id'=>$providerId]);
  }catch(\Throwable $x){$d->update(['status'=>'failed','error'=>'Provider submission failed. Check credentials, sender, template and provider logs before retrying.']);report($x);}
  }
 }

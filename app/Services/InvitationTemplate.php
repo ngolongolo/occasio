@@ -7,7 +7,7 @@ use App\Models\Invitee;
 
 class InvitationTemplate
 {
-    public const DEFAULT_SMS = 'Hello {guest_name}, {host} invites you to {event_title} on {event_date} at {venue}. RSVP: {rsvp_url}';
+    public const DEFAULT_SMS = 'Hello {guest_name}, {host} invites you to {event_title} on {event_date} at {venue}. Respond: {rsvp_url}';
 
     public static function sms(Invitee $guest, Event $event): string
     {
@@ -21,6 +21,6 @@ class InvitationTemplate
             '{rsvp_url}' => $guest->rsvpUrl(),
         ]);
 
-        return str_contains($template, '{rsvp_url}') ? $message : rtrim($message)." RSVP: {$guest->rsvpUrl()}";
+        return str_contains($template, '{rsvp_url}') ? $message : rtrim($message)." Respond: {$guest->rsvpUrl()}";
     }
 }

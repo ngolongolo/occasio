@@ -13,12 +13,14 @@ class EventRegistrationController
     public function show(string $token)
     {
         $event = Event::where('registration_token', $token)->firstOrFail();
+        abort_unless($event->participation_enabled, 404);
         return view('events.register', ['event' => $event, 'closed' => $event->rsvp_deadline->endOfDay()->isPast()]);
     }
 
     public function store(Request $request, string $token)
     {
         $event = Event::where('registration_token', $token)->firstOrFail();
+        abort_unless($event->participation_enabled, 404);
         abort_if($event->rsvp_deadline->endOfDay()->isPast(), 410, 'Registration is closed. Please contact the organiser.');
 
         $request->merge([

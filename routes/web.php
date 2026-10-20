@@ -44,7 +44,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/events/{event}/import', [EventController::class, 'import'])->middleware('throttle:10,1')->name('events.import');
     Route::post('/events/{event}/send', [EventController::class, 'send'])->middleware('throttle:5,1')->name('events.send');
     Route::get('/events/{event}/export', [EventController::class, 'export'])->name('events.export');
+    Route::put('/events/{event}/pledges/{pledge}', [EventController::class, 'updatePledge'])->name('events.pledges.update');
 });
 
 Route::get('/rsvp/{token}', [RsvpController::class, 'show'])->middleware('throttle:60,1')->name('rsvp.show');
+Route::get('/rsvp/{token}/card', [RsvpController::class, 'card'])->middleware('throttle:60,1')->name('rsvp.card');
 Route::post('/rsvp/{token}', [RsvpController::class, 'update'])->middleware('throttle:15,1');

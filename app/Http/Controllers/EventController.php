@@ -10,6 +10,7 @@ use App\Services\InvitationTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\Process\Process;
 
 class EventController
 {
@@ -44,7 +45,7 @@ class EventController
             'delivery' => ['nullable', 'in:not_sent,queued,previewed,submitted,failed'],
             'per_page' => ['nullable', 'integer', 'in:10,25,50,100'],
         ]);
-        $query = $event->invitees()->with('deliveries')->orderBy('name');
+        $query = $event->invitees()->with(['deliveries', 'pledge'])->orderBy('name');
         if (! empty($filters['q'])) {
             $search = trim($filters['q']);
             $query->where(function ($query) use ($search) {
@@ -68,6 +69,8 @@ class EventController
                 'accepted' => $event->invitees()->where('rsvp_status', 'accepted')->count(),
                 'declined' => $event->invitees()->where('rsvp_status', 'declined')->count(),
                 'seats' => $event->invitees()->sum('attending_count'),
+                'pledged' => $event->pledges()->sum('amount'),
+                'confirmed_pledges' => $event->pledges()->where('status', 'confirmed')->sum('amount'),
             ],
         ]);
     }
@@ -88,9 +91,21 @@ class EventController
             'logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg', 'max:2048'],
             'invitation_card' => ['nullable', 'file', 'mimes:pdf,png', 'max:10240'],
             'sms_template' => ['required', 'string', 'max:1000'],
+            'participation_enabled' => ['nullable', 'boolean'],
+            'pledge_enabled' => ['nullable', 'boolean'],
+            'pledge_currency' => ['nullable', 'string', 'size:3', 'required_if:pledge_enabled,1'],
+            'pledge_message' => ['nullable', 'string', 'max:2000'],
+            'payment_details' => ['nullable', 'string', 'max:5000', 'required_if:pledge_enabled,1'],
             'remove_logo' => ['nullable', 'boolean'],
             'remove_invitation_card' => ['nullable', 'boolean'],
         ]);
+
+        $data['participation_enabled'] = $request->has('response_options_present') ? $request->boolean('participation_enabled') : $event->participation_enabled;
+        $data['pledge_enabled'] = $request->has('response_options_present') ? $request->boolean('pledge_enabled') : $event->pledge_enabled;
+        if (! $data['participation_enabled'] && ! $data['pledge_enabled']) {
+            throw ValidationException::withMessages(['participation_enabled' => 'Enable participation, pledges, or both.']);
+        }
+        $data['pledge_currency'] = strtoupper($data['pledge_currency'] ?? $event->pledge_currency ?? 'TZS');
 
         if ($request->boolean('remove_logo') && $event->logo_path) {
             Storage::disk('local')->delete($event->logo_path);
@@ -103,19 +118,39 @@ class EventController
 
         if ($request->boolean('remove_invitation_card') && $event->invitation_card_path) {
             Storage::disk('local')->delete($event->invitation_card_path);
-            $data['invitation_card_path'] = $data['invitation_card_name'] = $data['invitation_card_mime'] = null;
+            if ($event->invitation_card_preview_path && $event->invitation_card_preview_path !== $event->invitation_card_path) Storage::disk('local')->delete($event->invitation_card_preview_path);
+            $data['invitation_card_path'] = $data['invitation_card_preview_path'] = $data['invitation_card_name'] = $data['invitation_card_mime'] = null;
         }
         if ($request->hasFile('invitation_card')) {
             if ($event->invitation_card_path) Storage::disk('local')->delete($event->invitation_card_path);
+            if ($event->invitation_card_preview_path && $event->invitation_card_preview_path !== $event->invitation_card_path) Storage::disk('local')->delete($event->invitation_card_preview_path);
             $card = $request->file('invitation_card');
             $data['invitation_card_path'] = $card->store("events/{$event->id}/cards", 'local');
             $data['invitation_card_name'] = $card->getClientOriginalName();
             $data['invitation_card_mime'] = $card->getMimeType();
+            $data['invitation_card_preview_path'] = $data['invitation_card_mime'] === 'image/png'
+                ? $data['invitation_card_path']
+                : $this->createCardPreview($data['invitation_card_path']);
         }
 
         unset($data['logo'], $data['invitation_card'], $data['remove_logo'], $data['remove_invitation_card']);
         $event->update($data);
         return redirect()->route('events.design', $event)->with('success', 'Invitation design saved.');
+    }
+
+    private function createCardPreview(string $cardPath): ?string
+    {
+        $disk = Storage::disk('local');
+        $previewPath = dirname($cardPath).'/'.pathinfo($cardPath, PATHINFO_FILENAME).'-preview.png';
+        $outputPrefix = substr($disk->path($previewPath), 0, -4);
+        try {
+            $process = new Process(['pdftoppm', '-f', '1', '-singlefile', '-png', '-scale-to', '1400', $disk->path($cardPath), $outputPrefix]);
+            $process->setTimeout(30);
+            $process->run();
+            return $process->isSuccessful() && $disk->exists($previewPath) ? $previewPath : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function downloadCard(Event $event)
@@ -164,12 +199,21 @@ class EventController
         $this->own($event);
         return response()->streamDownload(function () use ($event) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['name', 'email', 'phone', 'rsvp', 'attending_count', 'dietary']);
-            foreach ($event->invitees()->cursor() as $guest) {
-                $row = [$guest->name, $guest->email, $guest->phone, $guest->rsvp_status, $guest->attending_count, $guest->dietary];
+            fputcsv($file, ['name', 'email', 'phone', 'rsvp', 'attending_count', 'dietary', 'pledge_amount', 'pledge_currency', 'pledge_status', 'payment_method', 'payment_reference', 'pledge_message']);
+            foreach ($event->invitees()->with('pledge')->cursor() as $guest) {
+                $row = [$guest->name, $guest->email, $guest->phone, $guest->rsvp_status, $guest->attending_count, $guest->dietary, $guest->pledge?->amount, $guest->pledge ? $event->pledge_currency : null, $guest->pledge?->status, $guest->pledge?->payment_method, $guest->pledge?->payment_reference, $guest->pledge?->message];
                 fputcsv($file, array_map(fn ($value) => preg_match('/^[=+@\-]/', (string) $value) ? "'".$value : $value, $row));
             }
             fclose($file);
         }, 'guest-responses.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    public function updatePledge(Request $request, Event $event, \App\Models\Pledge $pledge)
+    {
+        $this->own($event);
+        abort_unless((int) $pledge->invitee()->value('event_id') === (int) $event->id, 404);
+        $data = $request->validate(['status' => ['required', 'in:pledged,payment_reported,confirmed,cancelled']]);
+        $pledge->update(['status' => $data['status'], 'confirmed_at' => $data['status'] === 'confirmed' ? now() : null]);
+        return back()->with('success', 'Pledge status updated.');
     }
 }

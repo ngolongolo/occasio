@@ -11,6 +11,7 @@ use App\Mail\InvitationMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Http;
 class InvitationTest extends TestCase {
  use RefreshDatabase;
  private function event(): Event {$u=User::create(['name'=>'Host','email'=>uniqid().'@example.com','password'=>'passwordlong']);return Event::create(['user_id'=>$u->id,'title'=>'Gala','host'=>'HTAF','description'=>'Welcome','starts_at'=>now()->addDays(30),'rsvp_deadline'=>now()->addDays(20),'venue'=>'Mwanza']);}
@@ -32,6 +33,28 @@ class InvitationTest extends TestCase {
   $this->assertSame('Your invitation: '.$g->event->title,$mail->envelope()->subject);
   $this->assertStringContainsString($g->rsvpUrl(),$mail->render());
  }
+ public function test_live_sms_is_submitted_to_sprint_sms(): void {
+  config(['services.delivery_mode'=>'live','services.sprint_sms'=>['url'=>'https://api.sprintsmsservice.com/api/SendSMS','api_id'=>'test-id','api_password'=>'test-password','sender_id'=>'LAINA']]);
+  Http::fake(['api.sprintsmsservice.com/*'=>Http::response(['message_id'=>'sprint-123'])]);
+  $g=$this->guest($this->event());$g->update(['phone'=>'+255784311111']);
+  $d=Delivery::create(['invitee_id'=>$g->id,'channel'=>'sms','status'=>'queued']);
+  (new SendInvitation($d->id))->handle();
+  $this->assertDatabaseHas('deliveries',['id'=>$d->id,'status'=>'submitted','provider_id'=>'sprint-123']);
+  Http::assertSent(fn($request)=>$request->method()==='GET'
+   &&str_starts_with($request->url(),'https://api.sprintsmsservice.com/api/SendSMS?')
+   &&$request['api_id']==='test-id'&&$request['api_password']==='test-password'
+   &&$request['sms_type']==='P'&&$request['encoding']==='T'&&$request['sender_id']==='LAINA'
+   &&$request['phonenumber']==='+255784311111'
+   &&str_contains($request['textmessage'],$g->rsvpUrl()));
+ }
+ public function test_failed_sprint_sms_request_marks_delivery_failed(): void {
+  config(['services.delivery_mode'=>'live','services.sprint_sms'=>['url'=>'https://api.sprintsmsservice.com/api/SendSMS','api_id'=>'test-id','api_password'=>'test-password','sender_id'=>'LAINA']]);
+  Http::fake(['api.sprintsmsservice.com/*'=>Http::response('Service unavailable',503)]);
+  $g=$this->guest($this->event());$g->update(['phone'=>'+255784311111']);
+  $d=Delivery::create(['invitee_id'=>$g->id,'channel'=>'sms','status'=>'queued']);
+  (new SendInvitation($d->id))->handle();
+  $this->assertSame('failed',$d->fresh()->status);
+ }
  public function test_organiser_can_add_edit_and_delete_a_guest(): void {
   $event=$this->event();
   $organiser=User::findOrFail($event->user_id);
@@ -42,6 +65,10 @@ class InvitationTest extends TestCase {
   $this->assertDatabaseHas('invitees',['id'=>$guest->id,'name'=>'Jane Updated','phone'=>'+255784311111','max_guests'=>2]);
   $this->actingAs($organiser)->delete(route('events.guests.destroy',[$event,$guest]))->assertRedirect(route('events.show',$event));
   $this->assertDatabaseMissing('invitees',['id'=>$guest->id]);
+ }
+ public function test_event_dashboard_has_single_participant_form(): void {
+  $event=$this->event();$organiser=User::findOrFail($event->user_id);
+  $this->actingAs($organiser)->get(route('events.show',$event))->assertOk()->assertSee('Add one participant')->assertSee('participant-name')->assertSee('participant-email')->assertSee('participant-phone')->assertSee('participant-max-guests');
  }
  public function test_organiser_cannot_manage_guests_from_another_event(): void {
   $event=$this->event();$guest=$this->guest($event);
@@ -83,6 +110,17 @@ class InvitationTest extends TestCase {
   $event=$this->event();$other=$this->event();$otherOrganiser=User::findOrFail($other->user_id);
   $this->actingAs($otherOrganiser)->put(route('events.design.update',$event),['primary_color'=>'#123456','sms_template'=>'Hello {guest_name}'])->assertForbidden();
  }
+ public function test_png_card_is_email_content_and_appears_on_rsvp_form(): void {
+  Storage::fake('local');
+  $event=$this->event();$organiser=User::findOrFail($event->user_id);$card=UploadedFile::fake()->image('invitation.png',900,1200);
+  $this->actingAs($organiser)->put(route('events.design.update',$event),['primary_color'=>'#56283f','background_color'=>'#fcf9f4','text_color'=>'#30252a','invitation_card'=>$card,'sms_template'=>'Hello {guest_name}. RSVP: {rsvp_url}'])->assertRedirect();
+  $event->refresh();$guest=$this->guest($event);$rendered=(new InvitationMail($guest))->render();
+  $this->assertStringContainsString($guest->cardUrl(true),$rendered);
+  $this->assertStringNotContainsString($event->description,$rendered);
+  $this->assertLessThan(strpos($rendered,'Confirm your attendance'),strpos($rendered,$guest->cardUrl(true)));
+  $this->get($guest->rsvpUrl())->assertOk()->assertSee($guest->cardUrl(true),false)->assertDontSee($event->description);
+  $this->get($guest->cardUrl(true))->assertOk()->assertHeader('content-type','image/png');
+ }
  public function test_selected_guest_can_receive_and_resend_invitation(): void {
   Queue::fake();
   $event=$this->event();$organiser=User::findOrFail($event->user_id);$selected=$this->guest($event);
@@ -100,6 +138,28 @@ class InvitationTest extends TestCase {
  public function test_custom_sms_always_includes_confirmation_link(): void {
   $event=$this->event();$event->update(['sms_template'=>'Welcome {guest_name} to {event_title}.']);$guest=$this->guest($event);
   $this->assertStringContainsString($guest->rsvpUrl(),InvitationTemplate::sms($guest,$event));
+ }
+ public function test_admin_can_enable_pledges_and_guest_can_submit_one(): void {
+  $event=$this->event();$organiser=User::findOrFail($event->user_id);
+  $this->actingAs($organiser)->put(route('events.design.update',$event),['primary_color'=>'#56283f','background_color'=>'#fcf9f4','text_color'=>'#30252a','sms_template'=>'Hello {guest_name}. {rsvp_url}','response_options_present'=>1,'participation_enabled'=>1,'pledge_enabled'=>1,'pledge_currency'=>'tzs','pledge_message'=>'Support this cause','payment_details'=>'M-Pesa 0712345678'])->assertRedirect();
+  $event->refresh();$this->assertTrue($event->participation_enabled);$this->assertTrue($event->pledge_enabled);$this->assertSame('TZS',$event->pledge_currency);
+  $guest=$this->guest($event);
+  $this->get($guest->rsvpUrl())->assertOk()->assertSee('Confirm participation')->assertSee('Make a pledge')->assertSee('M-Pesa 0712345678');
+  $this->post($guest->rsvpUrl(),['response_type'=>'pledge','amount'=>'250000','payment_method'=>'M-Pesa','payment_reference'=>'ABC123','message'=>'With gratitude'])->assertRedirect()->assertSessionHas('success');
+  $this->assertDatabaseHas('pledges',['invitee_id'=>$guest->id,'amount'=>250000,'status'=>'payment_reported','payment_reference'=>'ABC123']);
+  $this->assertSame('pending',$guest->fresh()->rsvp_status);
+ }
+ public function test_pledge_only_event_blocks_participation_and_public_registration(): void {
+  $event=$this->event();$event->update(['participation_enabled'=>false,'pledge_enabled'=>true,'payment_details'=>'Bank account 123']);$guest=$this->guest($event);
+  $this->get($guest->rsvpUrl())->assertOk()->assertDontSee('Confirm participation')->assertSee('Submit pledge');
+  $this->post($guest->rsvpUrl(),['response_type'=>'participation','rsvp_status'=>'accepted','attending_count'=>1])->assertNotFound();
+  $this->get($event->registrationUrl())->assertNotFound();
+ }
+ public function test_admin_can_confirm_a_reported_pledge(): void {
+  $event=$this->event();$event->update(['pledge_enabled'=>true,'payment_details'=>'Bank account 123']);$guest=$this->guest($event);
+  $pledge=$guest->pledge()->create(['amount'=>50000,'status'=>'payment_reported','pledged_at'=>now()]);$organiser=User::findOrFail($event->user_id);
+  $this->actingAs($organiser)->put(route('events.pledges.update',[$event,$pledge]),['status'=>'confirmed'])->assertRedirect();
+  $this->assertSame('confirmed',$pledge->fresh()->status);$this->assertNotNull($pledge->fresh()->confirmed_at);
  }
  public function test_event_urls_use_uuid_instead_of_database_id(): void {
   $event=$this->event();$organiser=User::findOrFail($event->user_id);$url=route('events.show',$event);

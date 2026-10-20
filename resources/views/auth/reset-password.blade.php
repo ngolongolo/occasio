@@ -12,10 +12,8 @@
         <input type="hidden" name="token" value="{{ $token }}">
         <label for="reset-email">Email address</label>
         <input id="reset-email" type="email" name="email" value="{{ old('email', $email) }}" required autocomplete="email">
-        <label for="new-password">New password</label>
-        <input id="new-password" type="password" name="password" required minlength="10" autocomplete="new-password">
-        <label for="confirm-password">Confirm new password</label>
-        <input id="confirm-password" type="password" name="password_confirmation" required minlength="10" autocomplete="new-password">
+        @include('partials.password-input', ['id' => 'new-password', 'name' => 'password', 'label' => 'New password', 'autocomplete' => 'new-password', 'minlength' => 10])
+        @include('partials.password-input', ['id' => 'confirm-password', 'name' => 'password_confirmation', 'label' => 'Confirm new password', 'autocomplete' => 'new-password', 'minlength' => 10])
         <button type="submit" style="width:100%;margin-top:25px">Reset password</button>
     </form>
 </div>

@@ -37,6 +37,9 @@ class InvitationMail extends Mailable
                 'logoPath' => $this->invitee->event->logo_path
                     ? Storage::disk('local')->path($this->invitee->event->logo_path)
                     : null,
+                'cardPreviewUrl' => $this->invitee->event->invitation_card_preview_path
+                    ? $this->invitee->cardUrl(true)
+                    : null,
             ],
         );
     }

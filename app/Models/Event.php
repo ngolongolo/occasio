@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 class Event extends Model
 {
-    protected $fillable = ['user_id', 'title', 'host', 'description', 'starts_at', 'rsvp_deadline', 'venue', 'dress_code', 'contact', 'primary_color', 'background_color', 'text_color', 'logo_path', 'invitation_card_path', 'invitation_card_name', 'invitation_card_mime', 'sms_template'];
+    protected $fillable = ['user_id', 'title', 'host', 'description', 'starts_at', 'rsvp_deadline', 'venue', 'dress_code', 'contact', 'primary_color', 'background_color', 'text_color', 'logo_path', 'invitation_card_path', 'invitation_card_preview_path', 'invitation_card_name', 'invitation_card_mime', 'sms_template', 'participation_enabled', 'pledge_enabled', 'pledge_currency', 'pledge_message', 'payment_details'];
 
     protected static function booted(): void
     {
@@ -19,7 +19,7 @@ class Event extends Model
 
     protected function casts(): array
     {
-        return ['starts_at' => 'datetime', 'rsvp_deadline' => 'date'];
+        return ['starts_at' => 'datetime', 'rsvp_deadline' => 'date', 'participation_enabled' => 'boolean', 'pledge_enabled' => 'boolean'];
     }
 
     public function getRouteKeyName(): string
@@ -30,6 +30,11 @@ class Event extends Model
     public function invitees()
     {
         return $this->hasMany(Invitee::class);
+    }
+
+    public function pledges()
+    {
+        return $this->hasManyThrough(Pledge::class, Invitee::class);
     }
 
     public function registrationUrl(): string

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
     <title>@yield('title','Okesheni · Every invitation, beautifully connected')</title>
-    <link rel="icon" type="image/png" href="/assets/logo/favicon.png"><link rel="stylesheet" href="/assets/style.css"><link rel="stylesheet" href="/assets/guests.css"><link rel="stylesheet" href="/assets/landing.css">
+    <link rel="icon" type="image/png" href="/assets/logo/favicon.png"><link rel="stylesheet" href="/assets/style.css"><link rel="stylesheet" href="/assets/guests.css?v={{ filemtime(public_path('assets/guests.css')) }}"><link rel="stylesheet" href="/assets/landing.css">
 </head>
 <body>
     <nav><a href="/"><img src="/assets/logo/logo_main.png" alt="Okesheni"></a><div class="links">@auth<a href="/dashboard">My events</a><form method="post" action="/logout">@csrf<button class="btn small">Sign out</button></form>@else<a href="/#product">Platform</a><a href="/#clients">Clients</a><a href="/#partners">Partners</a><a href="/login">Log in</a><a class="btn small" href="/register">Get started ↗</a>@endauth</div></nav>
@@ -30,6 +30,16 @@
         });
         const toast = document.getElementById('response-toast');
         if (toast) window.setTimeout(function () { toast.remove(); }, 7000);
+        function togglePasswordVisibility(toggle) {
+            const input = document.getElementById(toggle.getAttribute('aria-controls'));
+            if (!input) return;
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            toggle.setAttribute('aria-pressed', show ? 'true' : 'false');
+            toggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            toggle.title = show ? 'Hide password' : 'Show password';
+            input.focus();
+        }
     </script>
 </body>
 </html>

@@ -2,6 +2,8 @@
 
 A Laravel 12 invitation application with organiser accounts, event creation, XLSX/CSV guest imports, private RSVP links, queue-based email/SMS/WhatsApp submissions and response exports.
 
+Each event can accept participation responses, pledges, or both. Pledge-enabled events show administrator-configured payment instructions on each guest's private response page. Guest-reported payments remain unverified until an administrator marks the pledge confirmed.
+
 ## Install
 
 Requires PHP 8.2+ with mbstring, XML, DOM, GD, ZIP, SQLite or MySQL, and Composer 2. No Node build required.
@@ -33,7 +35,7 @@ DELIVERY_MODE=preview is the default: jobs become previewed and no external mess
 
 For email: set DELIVERY_MODE=live, MAIL_MAILER=smtp and SMTP credentials, port, sender and MAIL_SCHEME as required by the provider.
 
-SMS and WhatsApp use Twilio. Set account SID/token and authorised senders in .env. WhatsApp additionally requires an approved ContentSid template whose variables are 1 guest name, 2 event title, 3 event date/time, 4 full RSVP URL. Configure the template body/URL button to match those variables. The application sends via the Message resource. Twilio charges apply. Confirm recipients have opted in and sender registration is supported in your destination countries.
+SMS uses Sprint SMS Service. Set `SPRINT_SMS_API_ID`, `SPRINT_SMS_API_PASSWORD`, and the approved `SPRINT_SMS_SENDER_ID` in `.env`. WhatsApp uses Twilio and requires an account SID/token, authorised sender, and approved ContentSid template whose variables are 1 guest name, 2 event title, 3 event date/time, 4 full RSVP URL. Configure the template body/URL button to match those variables. Provider charges apply. Confirm recipients have opted in and sender registration is supported in your destination countries.
 
 Statuses: queued → processing → submitted, previewed or failed. Submitted records provider acceptance only. Delivery receipts/webhooks are not implemented; use the provider console for actual delivery outcomes. Existing submitted records are not resent; failed and previewed rows can be queued again. There are no automatic retries to avoid duplicate paid messages. A worker crash can leave processing status; investigate provider logs before manually resetting it. Queue worker timeout is shorter than retry_after.
 
