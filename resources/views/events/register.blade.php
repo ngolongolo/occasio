@@ -10,7 +10,7 @@
     <section class="panel registration-form"><span class="eyebrow">Attendance registration</span><h2>Confirm your place</h2><p>Already on the guest list? Use the same email address or phone number so we can update your existing response.</p>
         @if($closed)
         <div class="error">
-            Registration has closed. Please contact the organiser.
+            Registration has closed because this event has started. Please contact the organiser.
             @if($event->contact)
                 {{ $event->contact }}
             @endif

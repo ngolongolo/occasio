@@ -178,7 +178,9 @@ class EventController
             'channels.*' => 'required|in:email,sms,whatsapp',
             'consent' => 'accepted',
         ]);
-        abort_if($event->rsvp_deadline->endOfDay()->isPast(), 422, 'RSVP deadline has passed.');
+        if ($event->responsesClosed()) {
+            throw ValidationException::withMessages(['guest_ids' => 'Invitations cannot be sent after the event has started.']);
+        }
         $guests = $event->invitees()->whereKey($data['guest_ids'])->get();
         if ($guests->count() !== count($data['guest_ids'])) {
             throw ValidationException::withMessages(['guest_ids' => 'One or more selected guests do not belong to this event.']);

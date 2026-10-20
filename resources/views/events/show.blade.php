@@ -10,7 +10,7 @@
             <div class="event-facts">
                 <span><b>Calendar</b>{{ $event->starts_at->format('D, d M Y · g:i A') }} EAT</span>
                 <span><b>Location</b>{{ $event->venue }}</span>
-                <span><b>Responses close</b>{{ $event->rsvp_deadline->format('d M Y') }}</span>
+                <span><b>Requested response date</b>{{ $event->rsvp_deadline->format('d M Y') }}</span>
             </div>
         </div>
         <div class="event-hero-actions">

@@ -18,7 +18,13 @@ class InvitationTest extends TestCase {
  private function guest(Event $e): Invitee {return $e->invitees()->create(['name'=>'Guest','email'=>'guest@example.com','identity_key'=>hash('sha256','guest@example.com'),'token'=>str_repeat('a',64),'max_guests'=>2]);}
  public function test_organiser_cannot_access_another_event(): void {$e=$this->event();$other=User::create(['name'=>'Other','email'=>'other@example.com','password'=>'passwordlong']);$this->actingAs($other)->get(route('events.show',$e))->assertForbidden();$this->actingAs($other)->post(route('events.send',$e),['channels'=>['email'],'consent'=>1])->assertForbidden();}
  public function test_rsvp_limits_and_decline(): void {$g=$this->guest($this->event());$url='/rsvp/'.$g->token;$this->post($url,['rsvp_status'=>'accepted','attending_count'=>3])->assertSessionHasErrors('attending_count');$this->post($url,['rsvp_status'=>'accepted','attending_count'=>2])->assertRedirect();$this->assertDatabaseHas('invitees',['id'=>$g->id,'attending_count'=>2]);$this->post($url,['rsvp_status'=>'declined'])->assertRedirect();$this->assertDatabaseHas('invitees',['id'=>$g->id,'rsvp_status'=>'declined','attending_count'=>0]);}
- public function test_expired_links_reject_changes(): void {$e=$this->event();$e->update(['rsvp_deadline'=>now()->subDay()]);$g=$this->guest($e);$this->post('/rsvp/'.$g->token,['rsvp_status'=>'accepted','attending_count'=>1])->assertStatus(410);$this->get('/rsvp/unknown')->assertNotFound();}
+ public function test_started_event_links_reject_changes(): void {$e=$this->event();$e->update(['starts_at'=>now()->subHour(),'rsvp_deadline'=>now()->subDay()]);$g=$this->guest($e);$this->post('/rsvp/'.$g->token,['rsvp_status'=>'accepted','attending_count'=>1])->assertStatus(410);$this->get('/rsvp/unknown')->assertNotFound();}
+ public function test_responses_and_invitation_sending_continue_after_requested_deadline(): void {
+  Queue::fake();$e=$this->event();$e->update(['rsvp_deadline'=>now()->subDay()]);$g=$this->guest($e);$organiser=User::findOrFail($e->user_id);
+  $this->post($g->rsvpUrl(),['rsvp_status'=>'accepted','attending_count'=>1])->assertRedirect();
+  $this->actingAs($organiser)->post(route('events.send',$e),['guest_ids'=>[$g->id],'channels'=>['email'],'consent'=>1])->assertRedirect()->assertSessionHas('success');
+  Queue::assertPushed(SendInvitation::class);
+ }
  public function test_import_reports_duplicates_and_invalid_phone(): void {$e=$this->event();$path=tempnam(sys_get_temp_dir(),'guests');file_put_contents($path,"name,email,phone,max_guests\nGuest,guest@example.com,,2\nRepeat,guest@example.com,,1\nInvalid,,0784311111,1\n");$f=new UploadedFile($path,'guests.csv','text/csv',null,true);$report=app(GuestImporter::class)->import($f,$e);$this->assertSame(1,$report['imported']);$this->assertSame(1,$report['duplicates']);$this->assertCount(1,$report['errors']);unlink($path);}
  public function test_preview_does_not_submit_to_providers(): void {$g=$this->guest($this->event());$d=Delivery::create(['invitee_id'=>$g->id,'channel'=>'email','status'=>'queued']);\Illuminate\Support\Facades\Mail::fake();\Illuminate\Support\Facades\Http::preventStrayRequests();(new SendInvitation($d->id))->handle();$this->assertSame('previewed',$d->fresh()->status);\Illuminate\Support\Facades\Mail::assertNothingSent();}
  public function test_live_email_sends_personal_invitation(): void {
@@ -184,8 +190,8 @@ class InvitationTest extends TestCase {
   $this->assertSame(1,$event->invitees()->count());
   $this->assertDatabaseHas('invitees',['id'=>$guest->id,'name'=>'Guest Updated','rsvp_status'=>'declined','attending_count'=>0]);
  }
- public function test_public_event_registration_rejects_expired_and_unknown_links(): void {
-  $event=$this->event();$event->update(['rsvp_deadline'=>now()->subDay()]);$url=route('events.registration.show',$event->registration_token);
+ public function test_public_event_registration_rejects_started_and_unknown_links(): void {
+  $event=$this->event();$event->update(['starts_at'=>now()->subHour(),'rsvp_deadline'=>now()->subDay()]);$url=route('events.registration.show',$event->registration_token);
   $this->get($url)->assertOk()->assertSee('Registration has closed');
   $this->post($url,['name'=>'Late Guest','email'=>'late@example.com','rsvp_status'=>'accepted','attending_count'=>1])->assertStatus(410);
   $this->get('/join/'.str_repeat('x',64))->assertNotFound();

@@ -41,7 +41,7 @@ Statuses: queued → processing → submitted, previewed or failed. Submitted re
 
 ## RSVP
 
-Random 64-character bearer links; no invitee account needed. Responses can change until the end of the RSVP deadline in Africa/Dar_es_Salaam time. Seat limits enforced server-side. Declines reset attending count to zero. Organisers can access only their own events. Registration/login and RSVP endpoints are rate limited; forms use CSRF protection and Blade escaping.
+Random 64-character bearer links; no invitee account needed. The RSVP date is a requested response date; organisers may continue sending invitations and guests may respond until the event starts in Africa/Dar_es_Salaam time. Seat limits are enforced server-side. Declines reset attending count to zero. Organisers can access only their own events. Registration/login and RSVP endpoints are rate limited; forms use CSRF protection and Blade escaping.
 
 ## Production
 

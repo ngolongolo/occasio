@@ -4,11 +4,11 @@ use App\Models\Invitee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 class RsvpController {
- public function show(string $token){$guest=Invitee::where('token',$token)->with(['event','pledge'])->firstOrFail();return view('rsvp',['guest'=>$guest,'event'=>$guest->event,'closed'=>$guest->event->rsvp_deadline->endOfDay()->isPast()]);}
+ public function show(string $token){$guest=Invitee::where('token',$token)->with(['event','pledge'])->firstOrFail();return view('rsvp',['guest'=>$guest,'event'=>$guest->event,'closed'=>$guest->event->responsesClosed()]);}
  public function card(Request $request,string $token){$guest=Invitee::where('token',$token)->with('event')->firstOrFail();$event=$guest->event;$path=$request->boolean('preview')&&$event->invitation_card_preview_path?$event->invitation_card_preview_path:$event->invitation_card_path;abort_unless($path&&Storage::disk('local')->exists($path),404);return Storage::disk('local')->response($path,$request->boolean('preview')?'invitation-preview.png':$event->invitation_card_name,['Cache-Control'=>'private, max-age=3600']);}
  public function update(Request $r,string $token){
   $g=Invitee::where('token',$token)->with('event')->firstOrFail();$e=$g->event;
-  abort_if($e->rsvp_deadline->endOfDay()->isPast(),410,'Responses are closed. Please contact the organiser.');
+  abort_if($e->responsesClosed(),410,'Responses are closed because this event has started. Please contact the organiser.');
   $r->merge(['response_type'=>$r->input('response_type','participation')]);
   $type=$r->validate(['response_type'=>'required|in:participation,pledge'])['response_type'];
   if($type==='participation'){

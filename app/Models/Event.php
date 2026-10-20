@@ -41,4 +41,9 @@ class Event extends Model
     {
         return route('events.registration.show', $this->registration_token);
     }
+
+    public function responsesClosed(): bool
+    {
+        return $this->starts_at->isPast();
+    }
 }
