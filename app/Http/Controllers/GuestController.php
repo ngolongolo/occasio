@@ -23,7 +23,7 @@ class GuestController
         $data['identity_key'] = $this->identityKey($data);
         $data['token'] = Str::random(64);
         $event->invitees()->create($data);
-        return redirect()->route('events.show', $event)->with('success', 'Guest added successfully.');
+        return redirect()->route('events.participants', $event)->with('success', 'Guest added successfully.');
     }
 
     public function edit(Event $event, Invitee $guest)
@@ -42,14 +42,14 @@ class GuestController
         $guest->update($data);
         if ($emailChanged) $guest->deliveries()->where('channel', 'email')->delete();
         if ($phoneChanged) $guest->deliveries()->whereIn('channel', ['sms', 'whatsapp'])->delete();
-        return redirect()->route('events.show', $event)->with('success', 'Guest updated successfully.');
+        return redirect()->route('events.participants', $event)->with('success', 'Guest updated successfully.');
     }
 
     public function destroy(Event $event, Invitee $guest)
     {
         $this->authorizeGuest($event, $guest);
         $guest->delete();
-        return redirect()->route('events.show', $event)->with('success', 'Guest deleted.');
+        return redirect()->route('events.participants', $event)->with('success', 'Guest deleted.');
     }
 
     private function validated(Request $request, Event $event, ?Invitee $guest = null): array

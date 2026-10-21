@@ -21,6 +21,20 @@
 
     @include('partials.alerts')
 
+    <div class="event-workspace-layout">
+    <nav class="event-workspace-nav" aria-label="Event workspace">
+        <span class="workspace-nav-label">Event workspace</span>
+        <a class="{{ $workspaceTab==='overview'?'is-active':'' }}" href="{{ route('events.show',$event) }}">Overview</a>
+        <a class="{{ $workspaceTab==='participants'?'is-active':'' }}" href="{{ route('events.participants',$event) }}">Participants <span>{{ $stats['total'] }}</span></a>
+        <a class="{{ $workspaceTab==='invitations'?'is-active':'' }}" href="{{ route('events.invitations',$event) }}">Invitations</a>
+        @if($event->participation_enabled)<a class="{{ $workspaceTab==='attendance'?'is-active':'' }}" href="{{ route('events.attendance',$event) }}">Attendance</a>@endif
+        @if($event->pledge_enabled)<a class="{{ $workspaceTab==='pledges'?'is-active':'' }}" href="{{ route('events.pledges',$event) }}">Pledges</a>@endif
+        <span class="workspace-nav-label workspace-nav-manage">Manage</span>
+        <a href="{{ route('events.design',$event) }}">Settings</a>
+    </nav>
+    <div class="event-workspace-content">
+
+    @if($workspaceTab==='overview')
     <section class="event-metrics" aria-label="Event summary">
         <article><span>Invited</span><strong>{{ $stats['total'] }}</strong><small>Total participant records</small></article>
         @if($event->participation_enabled)
@@ -29,10 +43,19 @@
         @endif
         @if($event->pledge_enabled)
             <article><span>Total pledged</span><strong class="metric-money">{{ $event->pledge_currency }} {{ number_format($stats['pledged'], 2) }}</strong><small>All recorded pledges</small></article>
-            <article><span>Payment confirmed</span><strong class="metric-money">{{ $event->pledge_currency }} {{ number_format($stats['confirmed_pledges'], 2) }}</strong><small>Verified by an administrator</small></article>
+            <article><span>Total collected</span><strong class="metric-money">{{ $event->pledge_currency }} {{ number_format($stats['collected'], 2) }}</strong><small>{{ $stats['partially_paid'] }} partially paid</small></article>
+            <article><span>Outstanding</span><strong class="metric-money">{{ $event->pledge_currency }} {{ number_format(max(0,$stats['pledged']-$stats['collected']), 2) }}</strong><small>Remaining pledge balance</small></article>
         @endif
+        @if($event->responsesClosed())<article><span>Attended</span><strong>{{ $stats['attended'] }}</strong><small>{{ $stats['attended_seats'] }} people checked in</small></article>@endif
     </section>
 
+    <section class="overview-grid">
+        <article><span class="eyebrow">Next step</span><h2>Keep your event moving</h2><p>Add participants, send invitations, then monitor responses from their dedicated workspaces.</p><div class="actions"><a class="btn" href="{{ route('events.participants',$event) }}">Manage participants</a><a class="btn secondary" href="{{ route('events.invitations',$event) }}">Send invitations</a></div></article>
+        <article><span class="eyebrow">Event details</span><dl><div><dt>Host</dt><dd>{{ $event->host }}</dd></div><div><dt>Date</dt><dd>{{ $event->starts_at->format('d M Y, g:i A') }}</dd></div><div><dt>Venue</dt><dd>{{ $event->venue }}</dd></div><div><dt>Response date</dt><dd>{{ $event->rsvp_deadline->format('d M Y') }}</dd></div></dl></article>
+    </section>
+    @endif
+
+    @if($workspaceTab==='invitations')
     <section class="workspace-section">
         <div class="workspace-heading"><div><span class="eyebrow">Invitation operations</span><h2>Prepare and reach your guests</h2></div><p>Share, import, and send from one place.</p></div>
         <div class="event-operation-grid">
@@ -44,48 +67,81 @@
             </article>
             @endif
             <article class="operation-card">
-                <div class="operation-icon" aria-hidden="true">⇧</div>
-                <div><span class="operation-step">{{ $event->participation_enabled ? '02' : '01' }} · Import</span><h3>Upload a guest list</h3><p>Use the spreadsheet template for larger guest lists. Maximum 5,000 rows.</p></div>
-                <a class="text-action" href="{{ route('guest-template') }}">Download spreadsheet template ↓</a>
-                <form method="post" action="{{ route('events.import', $event) }}" enctype="multipart/form-data">@csrf<label for="guest-file">Completed Excel or CSV file</label><input id="guest-file" type="file" name="file" accept=".xlsx,.xls,.csv" required><button type="submit">Import guests</button></form>
-            </article>
-            <article class="operation-card">
                 <div class="operation-icon" aria-hidden="true">✦</div>
                 <div><span class="operation-step">{{ $event->participation_enabled ? '03' : '02' }} · Deliver</span><h3>Send invitations</h3><p>Select participants below, then choose how their personal invitation should be delivered.</p></div>
                 <form id="send-invitations-form" method="post" action="{{ route('events.send', $event) }}">@csrf<div class="channel-options">@foreach(['email'=>'Email','whatsapp'=>'WhatsApp','sms'=>'SMS'] as $key=>$label)<label><input type="checkbox" name="channels[]" value="{{ $key }}"><span>{{ $label }}</span></label>@endforeach</div><label class="consent-row"><input type="checkbox" name="consent" value="1" required><span>I have permission to contact these guests.</span></label><button type="submit">Send selected invitations →</button></form>
             </article>
         </div>
     </section>
+    @endif
 
+    @if(in_array($workspaceTab,['participants','invitations','attendance','pledges'],true))
     <section class="workspace-section participant-section">
-        <div class="workspace-heading"><div><span class="eyebrow">Participant directory</span><h2>Guests and responses</h2><p class="guest-result-count">@if($invitees->total()) Showing {{ $invitees->firstItem() }}–{{ $invitees->lastItem() }} of {{ $invitees->total() }} matching participants @else No matching participants @endif</p></div><button class="btn secondary" type="button" id="toggle-participant-form" aria-expanded="{{ $errors->any() ? 'true' : 'false' }}" aria-controls="quick-participant-form">＋ Add one participant</button></div>
+        @php($directoryCopy = ['participants'=>['Participant directory','Guests and responses','Manage participant records and RSVP details.'],'invitations'=>['Invitation delivery','Reach your guests','Select recipients and review invitation delivery.'],'attendance'=>['Attendance register','Confirm attendance','Record who attended and send configured thank-you messages.'],'pledges'=>['Pledge ledger','Pledges and collections','Review commitments, book payments and monitor outstanding balances.']][$workspaceTab])
+        <header class="directory-hero">
+            <div class="directory-title"><span class="directory-kicker">{{ $directoryCopy[0] }}</span><h2>{{ $directoryCopy[1] }}</h2><p>{{ $directoryCopy[2] }}</p></div>
+            @if($workspaceTab==='participants')<button class="directory-add-button" type="button" id="toggle-participant-form" aria-expanded="{{ $errors->any() ? 'true' : 'false' }}" aria-controls="quick-participant-form"><span>＋</span> Add one participant</button>@endif
+            <div class="directory-overview" aria-label="Participant response summary">
+                <div><strong>{{ $stats['total'] }}</strong><span>All guests</span></div>
+                @if($event->participation_enabled)<div><strong>{{ $stats['accepted'] }}</strong><span>Confirmed</span></div><div><strong>{{ max(0,$stats['total']-$stats['accepted']-$stats['declined']) }}</strong><span>Awaiting</span></div><div><strong>{{ $stats['declined'] }}</strong><span>Declined</span></div>@endif
+            </div>
+        </header>
 
-        <div id="quick-participant-form" class="quick-participant-form" @if(!$errors->any()) hidden @endif>
+        <div class="directory-body">
+
+        @if($workspaceTab==='participants')
+        <div class="participant-import-bar"><div><span class="operation-icon" aria-hidden="true">⇧</span><div><strong>Import participant list</strong><small>Upload an Excel or CSV file with up to 5,000 rows.</small></div></div><a class="text-action" href="{{ route('guest-template') }}">Download template</a><form method="post" action="{{ route('events.import',$event) }}" enctype="multipart/form-data">@csrf<input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="Participant spreadsheet" required><button type="submit">Import</button></form></div>
+        @endif
+
+        @if($workspaceTab==='participants')<div id="quick-participant-form" class="quick-participant-form" @if(!$errors->any()) hidden @endif>
             <div class="quick-form-intro"><span class="eyebrow">New participant</span><h3>Add someone to the guest list</h3><p>Provide an email, phone number, or both. Phone numbers must include the country code.</p></div>
             <form method="post" action="{{ route('events.guests.store', $event) }}">@csrf<div><label for="participant-name">Full name</label><input id="participant-name" name="name" value="{{ old('name') }}" maxlength="150" autocomplete="name" required></div><div><label for="participant-email">Email address</label><input id="participant-email" type="email" name="email" value="{{ old('email') }}" maxlength="180" autocomplete="email"></div><div><label for="participant-phone">Phone number</label><input id="participant-phone" type="tel" name="phone" value="{{ old('phone') }}" placeholder="+255784311111" autocomplete="tel"></div><div><label for="participant-max-guests">Maximum guests</label><input id="participant-max-guests" type="number" name="max_guests" value="{{ old('max_guests', 1) }}" min="1" max="10" required></div><button type="submit">Add participant</button></form>
-        </div>
+        </div>@endif
 
-        <form class="guest-filters" method="get" action="{{ route('events.show', $event) }}">
-            <div class="filter-search"><label for="guest-search">Search participants</label><input id="guest-search" type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Name, email or phone"></div>
-            @if($event->participation_enabled)<div><label for="rsvp-filter">Response</label><select id="rsvp-filter" name="rsvp"><option value="">All responses</option>@foreach(['pending'=>'Pending','accepted'=>'Confirmed','declined'=>'Declined'] as $value=>$label)<option value="{{ $value }}" @selected(($filters['rsvp'] ?? '') === $value)>{{ $label }}</option>@endforeach</select></div>@endif
-            <div><label for="delivery-filter">Invitation</label><select id="delivery-filter" name="delivery"><option value="">All invitations</option>@foreach(['not_sent'=>'Not sent','queued'=>'Queued','previewed'=>'Previewed','submitted'=>'Submitted','failed'=>'Failed'] as $value=>$label)<option value="{{ $value }}" @selected(($filters['delivery'] ?? '') === $value)>{{ $label }}</option>@endforeach</select></div>
+        @if($workspaceTab==='attendance' && $event->responsesClosed())
+        <div class="post-event-toolbar">
+            <div><span class="eyebrow">Post-event workflow</span><strong>Use the participant checkboxes below, then apply a bulk action.</strong></div>
+            <form id="bulk-attendance-form" method="post" action="{{ route('events.attendance.bulk',$event) }}">@csrf @method('put')<select name="attendance_status" aria-label="Bulk attendance status"><option value="attended">Mark attended</option><option value="absent">Mark absent</option><option value="pending">Reset confirmation</option></select><input type="number" name="attended_count" min="1" max="10" value="1" aria-label="Default actual attendance count"><button type="submit">Update attendance</button></form>
+            @if($event->attendance_thanks_enabled||$event->pledge_thanks_enabled)<form id="bulk-thanks-form" method="post" action="{{ route('events.thanks.bulk',$event) }}">@csrf<select name="type" aria-label="Thank-you type">@if($event->attendance_thanks_enabled)<option value="attendance_thanks">Attendance thanks</option>@endif @if($event->pledge_thanks_enabled)<option value="pledge_fully_paid_thanks">Fully-paid pledge thanks</option>@endif</select><button type="submit" class="btn secondary">Send selected thanks</button></form>@endif
+        </div>
+        @endif
+
+        <div class="directory-toolbar-title"><div><strong>Participant list</strong><span class="guest-result-count">@if($invitees->total()) {{ $invitees->firstItem() }}–{{ $invitees->lastItem() }} of {{ $invitees->total() }} results @else No matching participants @endif</span></div><span>Use the checkboxes to select guests for bulk actions.</span></div>
+        <form class="guest-filters" method="get" action="{{ request()->url() }}">
+            <div class="filter-search"><label for="guest-search">Find a participant</label><div class="directory-search-input"><span aria-hidden="true">⌕</span><input id="guest-search" type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search name, email or phone"></div></div>
+            @if(in_array($workspaceTab,['participants','attendance'],true)&&$event->participation_enabled)<div><label for="rsvp-filter">Response</label><select id="rsvp-filter" name="rsvp"><option value="">All responses</option>@foreach(['pending'=>'Pending','accepted'=>'Confirmed','declined'=>'Declined'] as $value=>$label)<option value="{{ $value }}" @selected(($filters['rsvp'] ?? '') === $value)>{{ $label }}</option>@endforeach</select></div>@endif
+            @if($workspaceTab==='invitations')<div><label for="delivery-filter">Invitation</label><select id="delivery-filter" name="delivery"><option value="">All invitations</option>@foreach(['not_sent'=>'Not sent','queued'=>'Queued','previewed'=>'Previewed','submitted'=>'Submitted','failed'=>'Failed'] as $value=>$label)<option value="{{ $value }}" @selected(($filters['delivery'] ?? '') === $value)>{{ $label }}</option>@endforeach</select></div>@endif
             <div><label for="per-page-filter">Rows</label><select id="per-page-filter" name="per_page">@foreach([10,25,50,100] as $size)<option value="{{ $size }}" @selected((int) ($filters['per_page'] ?? 25) === $size)>{{ $size }}</option>@endforeach</select></div>
-            <div class="filter-actions"><button type="submit">Apply</button><a class="btn secondary" href="{{ route('events.show', $event) }}">Reset</a></div>
+            <div class="filter-actions"><button type="submit">Apply</button><a class="btn secondary" href="{{ request()->url() }}">Reset</a></div>
         </form>
 
         <div class="table-wrap guest-table-wrap guest-table-shell"><table class="guest-table">
-            <thead><tr><th><input id="select-all-guests" type="checkbox" aria-label="Select all participants on this page"></th><th>Participant</th><th>Contact</th>@if($event->participation_enabled)<th>Response</th><th>Seats</th>@endif @if($event->pledge_enabled)<th>Pledge</th>@endif<th>Invitation</th><th>Delivery</th><th><span class="sr-only">Actions</span></th></tr></thead>
+            <thead><tr>@if(in_array($workspaceTab,['invitations','attendance'],true))<th><input id="select-all-guests" type="checkbox" aria-label="Select all participants on this page"></th>@endif<th>Participant</th><th>Contact</th>@if(in_array($workspaceTab,['participants','attendance'],true)&&$event->participation_enabled)<th>Response</th><th>Seats</th>@endif @if($workspaceTab==='attendance'&&$event->responsesClosed())<th>Attendance</th>@endif @if($workspaceTab==='pledges')<th>Pledge</th>@endif @if($workspaceTab==='invitations')<th>Invitation</th><th>Delivery</th>@endif @if($workspaceTab==='participants')<th><span class="sr-only">Actions</span></th>@endif</tr></thead>
             <tbody>@forelse($invitees as $guest)
-                <tr><td class="guest-select"><input class="guest-selector" type="checkbox" name="guest_ids[]" value="{{ $guest->id }}" form="send-invitations-form" aria-label="Select {{ $guest->name }}"></td><td class="guest-identity" data-label="Participant"><span class="guest-avatar" aria-hidden="true">{{ strtoupper(mb_substr($guest->name,0,1)) }}</span><div><strong>{{ $guest->name }}</strong>@if($guest->dietary)<small>{{ $guest->dietary }}</small>@endif</div></td><td data-label="Contact"><span class="contact-line">{{ $guest->email ?: '—' }}</span><span class="contact-line">{{ $guest->phone ?: '—' }}</span></td>@if($event->participation_enabled)<td data-label="Response"><span class="status-pill status-{{ $guest->rsvp_status }}">{{ $guest->rsvp_status }}</span></td><td data-label="Seats"><strong>{{ $guest->attending_count }}</strong> <span class="muted">/ {{ $guest->max_guests }}</span></td>@endif @if($event->pledge_enabled)<td data-label="Pledge">@if($guest->pledge)<strong>{{ $event->pledge_currency }} {{ number_format($guest->pledge->amount,2) }}</strong><form method="post" action="{{ route('events.pledges.update',[$event,$guest->pledge]) }}">@csrf @method('put')<select name="status" aria-label="Pledge status for {{ $guest->name }}" onchange="this.form.submit()">@foreach(['pledged'=>'Pledged','payment_reported'=>'Payment reported','confirmed'=>'Confirmed','cancelled'=>'Cancelled'] as $value=>$label)<option value="{{ $value }}" @selected($guest->pledge->status===$value)>{{ $label }}</option>@endforeach</select></form>@if($guest->pledge->payment_reference)<small>Ref: {{ $guest->pledge->payment_reference }}</small>@endif @else<span class="muted">No pledge</span>@endif</td>@endif<td data-label="Invitation"><a class="table-link" target="_blank" rel="noopener" href="{{ $guest->rsvpUrl() }}">Open ↗</a></td><td data-label="Delivery"><div class="delivery-list">@forelse($guest->deliveries as $d)<span class="delivery-state"><b>{{ $d->channel }}</b> {{ $d->status }}</span>@if($d->error)<small>{{ $d->error }}</small>@endif @empty<span class="muted">Not sent</span>@endforelse</div></td><td class="guest-actions"><div class="row-actions"><a class="icon-btn" href="{{ route('events.guests.edit', [$event, $guest]) }}" aria-label="Edit {{ $guest->name }}" title="Edit participant">✎</a><form method="post" action="{{ route('events.guests.destroy', [$event, $guest]) }}" onsubmit="return confirm('Delete this participant from the guest list?')">@csrf @method('delete')<button class="icon-btn danger" type="submit" aria-label="Delete {{ $guest->name }}" title="Delete participant">×</button></form></div></td></tr>
-            @empty<tr><td colspan="{{ 6 + ($event->participation_enabled ? 2 : 0) + ($event->pledge_enabled ? 1 : 0) }}" class="empty-participants"><strong>No participants found</strong><span>Add someone above or clear the current filters.</span></td></tr>@endforelse</tbody>
+                <tr>
+                    @if(in_array($workspaceTab,['invitations','attendance'],true))<td class="guest-select"><input class="guest-selector" type="checkbox" name="guest_ids[]" value="{{ $guest->id }}" @if($workspaceTab==='invitations') form="send-invitations-form" @endif aria-label="Select {{ $guest->name }}"></td>@endif
+                    <td class="guest-identity" data-label="Participant"><span class="guest-avatar" aria-hidden="true">{{ strtoupper(mb_substr($guest->name,0,1)) }}</span><div><strong>{{ $guest->name }}</strong>@if($guest->dietary)<small>{{ $guest->dietary }}</small>@endif</div></td>
+                    <td data-label="Contact"><span class="contact-line">{{ $guest->email ?: '—' }}</span><span class="contact-line">{{ $guest->phone ?: '—' }}</span></td>
+                    @if(in_array($workspaceTab,['participants','attendance'],true)&&$event->participation_enabled)<td data-label="Response"><span class="status-pill status-{{ $guest->rsvp_status }}">{{ $guest->rsvp_status }}</span></td><td data-label="Seats"><strong>{{ $guest->attending_count }}</strong> <span class="muted">/ {{ $guest->max_guests }}</span></td>@endif
+                    @if($workspaceTab==='attendance'&&$event->responsesClosed())<td data-label="Attendance" class="workflow-cell"><form method="post" action="{{ route('events.attendance.update',[$event,$guest]) }}">@csrf @method('put')<select name="attendance_status" aria-label="Attendance for {{ $guest->name }}">@foreach(['pending'=>'Not confirmed','attended'=>'Attended','absent'=>'Absent'] as $value=>$label)<option value="{{ $value }}" @selected($guest->attendance_status===$value)>{{ $label }}</option>@endforeach</select><input type="number" name="attended_count" min="0" max="{{ $guest->max_guests }}" value="{{ $guest->attended_count }}" aria-label="Actual attendees for {{ $guest->name }}"><button class="mini-action" type="submit">Save</button></form>@if($guest->attendance_status==='attended'&&$event->attendance_thanks_enabled)<form method="post" action="{{ route('events.thanks.send',[$event,$guest]) }}">@csrf<input type="hidden" name="type" value="attendance_thanks"><button class="text-button" type="submit">Send thanks</button></form>@endif</td>@endif
+                    @if($workspaceTab==='pledges')<td data-label="Pledge" class="workflow-cell pledge-workflow">@if($guest->pledge)@php($paid=(float)$guest->pledge->paid_amount) @php($balance=(float)$guest->pledge->balance)<div class="pledge-summary"><strong>{{ $event->pledge_currency }} {{ number_format($guest->pledge->amount,2) }}</strong><span class="status-pill status-{{ $guest->pledge->status }}">{{ str_replace('_',' ',$guest->pledge->status) }}</span><small>Paid {{ $event->pledge_currency }} {{ number_format($paid,2) }} · Balance {{ $event->pledge_currency }} {{ number_format(max(0,$balance),2) }}</small><div class="progress-track"><i style="width:{{ min(100,$guest->pledge->amount>0?($paid/$guest->pledge->amount)*100:0) }}%"></i></div></div><a class="book-payment-link" href="{{ route('events.pledge-payments.create',[$event,$guest->pledge]) }}">＋ Book payment</a><details class="pledge-ledger"><summary>Payment history ({{ $guest->pledge->payments->where('status','recorded')->count() }})</summary><div class="payment-history">@forelse($guest->pledge->payments->sortByDesc('payment_date') as $payment)<article class="payment-entry {{ $payment->status==='voided'?'is-voided':'' }}"><strong>{{ $event->pledge_currency }} {{ number_format($payment->amount,2) }}</strong><span>{{ $payment->payment_date->format('d M Y') }} · {{ $payment->payment_method ?: 'Method not specified' }}</span>@if($payment->reference)<small>Ref: {{ $payment->reference }}</small>@endif @if($payment->status==='recorded')<div class="payment-actions">@if($event->payment_receipt_enabled)<form method="post" action="{{ route('events.pledge-payments.receipt',[$event,$guest->pledge,$payment]) }}">@csrf<button class="text-button" type="submit">Send receipt</button></form>@endif<form method="post" action="{{ route('events.pledge-payments.void',[$event,$guest->pledge,$payment]) }}">@csrf @method('put')<input name="void_reason" required maxlength="1000" placeholder="Reason for correction"><button class="text-button danger-text" type="submit">Void</button></form></div>@else<small>Voided: {{ $payment->void_reason }}</small>@endif</article>@empty<p class="muted">No payments booked.</p>@endforelse</div></details>@if(in_array($guest->pledge->status,['paid','overpaid'])&&$event->pledge_thanks_enabled)<form method="post" action="{{ route('events.thanks.send',[$event,$guest]) }}">@csrf<input type="hidden" name="type" value="pledge_fully_paid_thanks"><button class="text-button" type="submit">Send fully-paid thanks</button></form>@endif @else<span class="muted">No pledge</span>@endif</td>@endif
+                    @if($workspaceTab==='invitations')<td data-label="Invitation"><a class="table-link" target="_blank" rel="noopener" href="{{ $guest->rsvpUrl() }}">Open ↗</a></td><td data-label="Delivery"><div class="delivery-list">@forelse($guest->deliveries as $d)<span class="delivery-state"><b>{{ $d->channel }}</b> {{ $d->status }}</span>@if($d->error)<small>{{ $d->error }}</small>@endif @empty<span class="muted">Not sent</span>@endforelse @foreach($guest->notificationDeliveries as $d)<span class="delivery-state"><b>{{ str_replace('_',' ',$d->type) }} {{ $d->channel }}</b> {{ $d->status }}</span>@endforeach</div></td>@endif
+                    @if($workspaceTab==='participants')<td class="guest-actions"><div class="row-actions"><a class="icon-btn" href="{{ route('events.guests.edit', [$event, $guest]) }}" aria-label="Edit {{ $guest->name }}" title="Edit participant">✎</a><form method="post" action="{{ route('events.guests.destroy', [$event, $guest]) }}" onsubmit="return confirm('Delete this participant from the guest list?')">@csrf @method('delete')<button class="icon-btn danger" type="submit" aria-label="Delete {{ $guest->name }}" title="Delete participant">×</button></form></div></td>@endif
+                </tr>
+            @empty<tr><td colspan="{{ 6 + ($event->participation_enabled ? 2 : 0) + ($event->pledge_enabled ? 1 : 0) + ($event->responsesClosed() ? 1 : 0) }}" class="empty-participants"><strong>No participants found</strong><span>Add someone above or clear the current filters.</span></td></tr>@endforelse</tbody>
         </table></div>
         {{ $invitees->links('partials.pagination') }}
+        </div>
     </section>
+    @endif
+    </div>
+    </div>
 </main>
 <script>
     (function () {
         const form=document.getElementById('quick-participant-form'),toggle=document.getElementById('toggle-participant-form');
-        toggle.addEventListener('click',function(){const opening=form.hidden;form.hidden=!opening;toggle.setAttribute('aria-expanded',opening?'true':'false');if(opening)document.getElementById('participant-name').focus();});
+        if(toggle)toggle.addEventListener('click',function(){const opening=form.hidden;form.hidden=!opening;toggle.setAttribute('aria-expanded',opening?'true':'false');if(opening)document.getElementById('participant-name').focus();});
+        ['bulk-attendance-form','bulk-thanks-form'].forEach(function(id){const bulk=document.getElementById(id);if(!bulk)return;bulk.addEventListener('submit',function(event){bulk.querySelectorAll('input[data-selected-guest]').forEach(function(input){input.remove();});const selected=document.querySelectorAll('.guest-selector:checked');if(!selected.length){event.preventDefault();alert('Select at least one participant.');return;}selected.forEach(function(box){const input=document.createElement('input');input.type='hidden';input.name='guest_ids[]';input.value=box.value;input.dataset.selectedGuest='1';bulk.appendChild(input);});});});
         const input=document.getElementById('registration-link'),copy=document.getElementById('copy-registration-link'),share=document.getElementById('share-registration-link'),status=document.getElementById('copy-status');
         if(!input)return;
         copy.addEventListener('click',async function(){try{await navigator.clipboard.writeText(input.value);}catch(error){input.select();document.execCommand('copy');}status.textContent='Link copied to clipboard.';setTimeout(function(){status.textContent='';},3000);});

@@ -33,6 +33,10 @@ Route::middleware('auth')->group(function () {
     Route::view('/events/create', 'events.create');
     Route::post('/events', [EventController::class, 'store']);
     Route::get('/events/{event}', [EventController::class, 'show'])->name('events.show');
+    Route::get('/events/{event}/participants', [EventController::class, 'participants'])->name('events.participants');
+    Route::get('/events/{event}/invitations', [EventController::class, 'invitations'])->name('events.invitations');
+    Route::get('/events/{event}/attendance', [EventController::class, 'attendance'])->name('events.attendance');
+    Route::get('/events/{event}/pledges', [EventController::class, 'pledges'])->name('events.pledges');
     Route::get('/events/{event}/design', [EventController::class, 'design'])->name('events.design');
     Route::put('/events/{event}/design', [EventController::class, 'updateDesign'])->name('events.design.update');
     Route::get('/events/{event}/design/card', [EventController::class, 'downloadCard'])->name('events.design.card');
@@ -45,6 +49,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/events/{event}/send', [EventController::class, 'send'])->middleware('throttle:5,1')->name('events.send');
     Route::get('/events/{event}/export', [EventController::class, 'export'])->name('events.export');
     Route::put('/events/{event}/pledges/{pledge}', [EventController::class, 'updatePledge'])->name('events.pledges.update');
+    Route::get('/events/{event}/pledges/{pledge}/payments/create', [EventController::class, 'createPledgePayment'])->name('events.pledge-payments.create');
+    Route::post('/events/{event}/pledges/{pledge}/payments', [EventController::class, 'recordPledgePayment'])->name('events.pledge-payments.store');
+    Route::put('/events/{event}/pledges/{pledge}/payments/{payment}/void', [EventController::class, 'voidPledgePayment'])->name('events.pledge-payments.void');
+    Route::post('/events/{event}/pledges/{pledge}/payments/{payment}/receipt', [EventController::class, 'sendPaymentReceipt'])->name('events.pledge-payments.receipt');
+    Route::put('/events/{event}/attendance/{guest}', [EventController::class, 'updateAttendance'])->name('events.attendance.update');
+    Route::put('/events/{event}/attendance', [EventController::class, 'bulkUpdateAttendance'])->name('events.attendance.bulk');
+    Route::post('/events/{event}/thanks/{guest}', [EventController::class, 'sendThanks'])->name('events.thanks.send');
+    Route::post('/events/{event}/thanks', [EventController::class, 'bulkSendThanks'])->name('events.thanks.bulk');
 });
 
 Route::get('/rsvp/{token}', [RsvpController::class, 'show'])->middleware('throttle:60,1')->name('rsvp.show');

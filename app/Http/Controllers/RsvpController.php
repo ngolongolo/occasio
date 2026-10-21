@@ -18,6 +18,7 @@ class RsvpController {
    return back()->with('success','Thank you. Your participation response has been saved.');
   }
   abort_unless($e->pledge_enabled,404);
+  abort_if(in_array($g->pledge?->status, ['paid', 'overpaid'], true),422,'A fully paid pledge cannot be changed. Please contact the organiser.');
   $v=$r->validate(['amount'=>'required|numeric|min:1|max:999999999999.99','payment_method'=>'nullable|string|max:100','payment_reference'=>'nullable|string|max:150','message'=>'nullable|string|max:1000']);
   $status=!empty($v['payment_reference'])?'payment_reported':'pledged';
   $g->pledge()->updateOrCreate([],array_merge($v,['status'=>$status,'pledged_at'=>now(),'confirmed_at'=>null]));

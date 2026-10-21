@@ -6,6 +6,8 @@ use App\Services\InvitationTemplate;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\{Http,Mail};
+use Illuminate\Http\Client\{ConnectionException, RequestException};
+use Illuminate\Support\Facades\Log;
 class SendInvitation implements ShouldQueue {
  use Queueable;
  public int $tries=1; public int $timeout=60;
@@ -34,6 +36,14 @@ class SendInvitation implements ShouldQueue {
  $providerId=$response->json('message_id')??$response->json('id')??$response->json('request_id');
  }
  $d->update(['status'=>'submitted','provider_id'=>$providerId]);
+ }catch(RequestException $x){
+  $status=$x->response->status();
+  $temporary=$status===429||$status>=500;
+  $d->update(['status'=>'failed','error'=>$temporary?"Messaging provider temporarily unavailable (HTTP {$status}). Retry this delivery later.":"Messaging provider rejected the request (HTTP {$status}). Check the channel configuration before retrying."]);
+  Log::warning('Invitation provider request failed.',['delivery_id'=>$d->id,'channel'=>$d->channel,'http_status'=>$status,'temporary'=>$temporary]);
+ }catch(ConnectionException $x){
+  $d->update(['status'=>'failed','error'=>'Could not connect to the messaging provider. Retry this delivery later.']);
+  Log::warning('Invitation provider connection failed.',['delivery_id'=>$d->id,'channel'=>$d->channel]);
  }catch(\Throwable $x){$d->update(['status'=>'failed','error'=>'Provider submission failed. Check credentials, sender, template and provider logs before retrying.']);report($x);}
  }
 }

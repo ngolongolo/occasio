@@ -17,7 +17,10 @@
 
     @yield('content')
     <footer><img src="/assets/logo/logo_large.png" alt="Okesheni"><span>© {{ date('Y') }} Okesheni</span><span>Professional events, beautifully coordinated.</span></footer>
-    <div id="submit-loader" class="submit-loader" hidden aria-live="assertive" aria-label="Processing request"><div class="spinner"></div><strong>Processing…</strong></div>
+    <div id="submit-loader" class="submit-loader" hidden role="status" aria-live="assertive" aria-label="Processing request">
+        <div class="submit-loader-brand"><span class="loader-orbit" aria-hidden="true"></span><img src="/assets/logo/favicon.png" alt=""></div>
+        <strong>Processing…</strong><small>Please wait a moment</small>
+    </div>
     <script>
         document.addEventListener('submit', function (event) {
             if (event.defaultPrevented || event.target.method.toLowerCase() !== 'post') return;

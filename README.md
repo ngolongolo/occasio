@@ -2,7 +2,9 @@
 
 A Laravel 12 invitation application with organiser accounts, event creation, XLSX/CSV guest imports, private RSVP links, queue-based email/SMS/WhatsApp submissions and response exports.
 
-Each event can accept participation responses, pledges, or both. Pledge-enabled events show administrator-configured payment instructions on each guest's private response page. Guest-reported payments remain unverified until an administrator marks the pledge confirmed.
+Each event can accept participation responses, pledges, or both. Pledge-enabled events show administrator-configured payment instructions on each guest's private response page. Guest-reported payments remain unverified until an administrator books received funds.
+
+After an event starts, organisers can record actual attendance separately from RSVP, individually or in bulk. Pledge payments use an audited installment ledger: an organiser records the amount, date, optional method/reference and note; the system calculates paid and outstanding totals and marks the pledge partially paid, paid or overpaid. Duplicate event references and accidental overpayments are guarded, while corrections are voided with a reason instead of deleted. Each installment can generate its own configured email/SMS receipt, and fully paid pledges can trigger a separate thank-you. Notification delivery history prevents accidental duplicates. Fully paid pledges are locked against guest edits. This is a manual payment-verification workflow; direct payment-gateway checkout/webhooks require a provider-specific integration.
 
 ## Install
 
@@ -57,4 +59,4 @@ Simple MVP: no billing, event editing/deletion, password reset, email verificati
 
 ## Verification in this workspace
 
-Source and print card reviewed. Automated PHP tests included but not executed: PHP/Composer could not be installed in this restricted environment. Browser rendering also could not run because Chromium download was blocked. Run `composer install`, `php artisan migrate` and `vendor/bin/phpunit` before deployment, then verify registration, XLSX import, RSVP and each configured delivery channel in staging. No live messages were sent.
+Run `php artisan migrate` and `vendor/bin/phpunit` before deployment, then verify registration, XLSX import, RSVP and each configured delivery channel in staging. Automated tests use preview delivery mode, so no live messages are sent.

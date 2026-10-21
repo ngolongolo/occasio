@@ -6,7 +6,6 @@ use App\Models\Invitee;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
@@ -37,8 +36,8 @@ class InvitationMail extends Mailable
                 'logoPath' => $this->invitee->event->logo_path
                     ? Storage::disk('local')->path($this->invitee->event->logo_path)
                     : null,
-                'cardPreviewUrl' => $this->invitee->event->invitation_card_preview_path
-                    ? $this->invitee->cardUrl(true)
+                'cardPreviewPath' => $this->invitee->event->invitation_card_preview_path
+                    ? Storage::disk('local')->path($this->invitee->event->invitation_card_preview_path)
                     : null,
             ],
         );
@@ -46,16 +45,6 @@ class InvitationMail extends Mailable
 
     public function attachments(): array
     {
-        $event = $this->invitee->event;
-
-        if (! $event->invitation_card_path) {
-            return [];
-        }
-
-        return [
-            Attachment::fromStorageDisk('local', $event->invitation_card_path)
-                ->as($event->invitation_card_name ?: 'invitation-card')
-                ->withMime($event->invitation_card_mime ?: 'application/octet-stream'),
-        ];
+        return [];
     }
 }
