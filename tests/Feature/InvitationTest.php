@@ -92,12 +92,17 @@ class InvitationTest extends TestCase {
   $event=$this->event();$organiser=User::findOrFail($event->user_id);
   $this->actingAs($organiser)->get(route('events.participants',$event))->assertOk()->assertSee('Add one participant')->assertSee('participant-name')->assertSee('participant-email')->assertSee('participant-phone')->assertSee('participant-max-guests');
  }
- public function test_event_workspace_separates_operational_pages(): void {
+ public function test_event_workspace_combines_invitation_rsvp_and_attendance_operations(): void {
   $event=$this->event();$event->update(['pledge_enabled'=>true,'payment_details'=>'Bank 123']);$organiser=User::findOrFail($event->user_id);$this->guest($event);
   $this->actingAs($organiser)->get(route('events.show',$event))->assertOk()->assertSee('Keep your event moving')->assertDontSee('Add one participant');
-  $this->actingAs($organiser)->get(route('events.participants',$event))->assertOk()->assertViewHas('workspaceTab','participants')->assertSee('Guests and responses');
-  $this->actingAs($organiser)->get(route('events.invitations',$event))->assertOk()->assertViewHas('workspaceTab','invitations')->assertSee('Reach your guests')->assertSee('send-invitations-form');
+  $this->actingAs($organiser)->get(route('events.participants',$event))->assertOk()->assertViewHas('workspaceTab','participants')->assertSee('Invitations, RSVP and attendance')->assertSee('send-invitations-form')->assertSee('Invitation delivery')->assertDontSee('Confirm selected attendance');
+  $this->actingAs($organiser)->get(route('events.invitations',$event))->assertRedirect(route('events.participants',$event));
+  $this->actingAs($organiser)->get(route('events.attendance',$event))->assertRedirect(route('events.participants',$event));
   $this->actingAs($organiser)->get(route('events.pledges',$event))->assertOk()->assertViewHas('workspaceTab','pledges')->assertSee('Pledges and collections');
+ }
+ public function test_participant_directory_enables_attendance_during_or_after_event(): void {
+  $event=$this->event();$event->update(['starts_at'=>now()->subMinute(),'rsvp_deadline'=>now()->subHour()]);$organiser=User::findOrFail($event->user_id);$this->guest($event);
+  $this->actingAs($organiser)->get(route('events.participants',$event))->assertOk()->assertSee('bulk-attendance-form')->assertSee('Confirm selected attendance')->assertSee('Attendance confirmation');
  }
  public function test_organiser_cannot_manage_guests_from_another_event(): void {
   $event=$this->event();$guest=$this->guest($event);
@@ -133,6 +138,12 @@ class InvitationTest extends TestCase {
   $attachments=$mail->attachments();
   $this->assertCount(0,$attachments);
   $this->assertSame('image/jpeg',$event->invitation_card_mime);
+ }
+ public function test_organiser_can_edit_event_details_from_settings(): void {
+  $event=$this->event();$organiser=User::findOrFail($event->user_id);$starts=now()->addDays(45)->seconds(0);$deadline=now()->addDays(35)->format('Y-m-d');
+  $this->actingAs($organiser)->get(route('events.design',$event))->assertOk()->assertSee('Event settings')->assertSee('id="event-details"',false)->assertSee($event->title);
+  $this->actingAs($organiser)->put(route('events.design.update',$event),['title'=>'Updated Gala','host'=>'Updated Host','description'=>'Updated invitation description.','starts_at'=>$starts->format('Y-m-d\TH:i'),'rsvp_deadline'=>$deadline,'venue'=>'New Venue','dress_code'=>'Formal','contact'=>'+255700000000','primary_color'=>'#56283f','background_color'=>'#fcf9f4','text_color'=>'#30252a','sms_template'=>'Hello {guest_name}. RSVP: {rsvp_url}'])->assertRedirect(route('events.design',$event))->assertSessionHas('success','Event settings saved.');
+  $this->assertDatabaseHas('events',['id'=>$event->id,'title'=>'Updated Gala','host'=>'Updated Host','description'=>'Updated invitation description.','venue'=>'New Venue','dress_code'=>'Formal','contact'=>'+255700000000']);
  }
  public function test_invitation_card_upload_rejects_non_image_files(): void {
   Storage::fake('local');$event=$this->event();$organiser=User::findOrFail($event->user_id);
@@ -295,9 +306,15 @@ class InvitationTest extends TestCase {
  }
  public function test_public_event_link_registers_a_new_guest_and_confirms_attendance(): void {
   $event=$this->event();$url=route('events.registration.show',$event->registration_token);
-  $this->get($url)->assertOk()->assertSee($event->title)->assertSee('Confirm your place');
+  $this->get($url)->assertOk()->assertSee($event->title)->assertSee('Confirm your place')->assertSee('registration-description-toggle')->assertSee('Read more');
   $this->post($url,['name'=>'Public Guest','email'=>'PUBLIC@example.com','phone'=>'+255 784 000 111','rsvp_status'=>'accepted','attending_count'=>2,'dietary'=>'Vegetarian'])->assertRedirect()->assertSessionHas('success');
   $this->assertDatabaseHas('invitees',['event_id'=>$event->id,'name'=>'Public Guest','email'=>'public@example.com','phone'=>'+255784000111','rsvp_status'=>'accepted','attending_count'=>2,'max_guests'=>2,'dietary'=>'Vegetarian']);
+ }
+ public function test_public_registration_displays_an_uploaded_invitation_image(): void {
+  Storage::fake('local');$event=$this->event();$path='events/'.$event->id.'/cards/invitation.jpg';Storage::disk('local')->put($path,'image-content');$event->update(['invitation_card_path'=>$path,'invitation_card_preview_path'=>$path,'invitation_card_name'=>'invitation.jpg','invitation_card_mime'=>'image/jpeg']);
+  $cardUrl=route('events.registration.card',['token'=>$event->registration_token,'v'=>substr(sha1($path),0,12)]);
+  $this->get($event->registrationUrl())->assertOk()->assertSee('registration-invitation-card')->assertSee($cardUrl,false);
+  $this->get($cardUrl)->assertOk()->assertHeader('content-type','image/jpeg');
  }
  public function test_public_event_link_updates_an_existing_registered_guest(): void {
   $event=$this->event();$guest=$this->guest($event);$url=route('events.registration.show',$event->registration_token);
@@ -313,7 +330,7 @@ class InvitationTest extends TestCase {
  }
  public function test_event_dashboard_displays_non_numeric_share_link(): void {
   $event=$this->event();$organiser=User::findOrFail($event->user_id);
-  $this->actingAs($organiser)->get(route('events.invitations',$event))->assertOk()->assertSee($event->registrationUrl())->assertDontSee('/join/'.$event->id.'"',false);
+  $this->actingAs($organiser)->get(route('events.participants',$event))->assertOk()->assertSee($event->registrationUrl())->assertDontSee('/join/'.$event->id.'"',false);
  }
  public function test_guest_list_can_be_paginated_and_filtered(): void {
   $event=$this->event();$organiser=User::findOrFail($event->user_id);

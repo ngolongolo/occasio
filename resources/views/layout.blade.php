@@ -6,7 +6,7 @@
     <link rel="icon" type="image/png" href="/assets/logo/favicon.png"><link rel="stylesheet" href="/assets/style.css"><link rel="stylesheet" href="/assets/guests.css?v={{ filemtime(public_path('assets/guests.css')) }}"><link rel="stylesheet" href="/assets/landing.css">
 </head>
 <body>
-    <nav><a href="/"><img src="/assets/logo/logo_main.png" alt="Okesheni"></a><div class="links">@auth<a href="/dashboard">My events</a><form method="post" action="/logout">@csrf<button class="btn small">Sign out</button></form>@else<a href="/#product">Platform</a><a href="/#clients">Clients</a><a href="/#partners">Partners</a><a href="/login">Log in</a><a class="btn small" href="/register">Get started ↗</a>@endauth</div></nav>
+    <nav><a href="/"><img src="/assets/logo/logo_main.png" alt="Okesheni"></a><div class="links">@auth @if(auth()->user()->isSuperAdmin())<a class="admin-nav-link" href="{{ route('admin.index') }}">Super Admin</a>@else<a href="/dashboard">My events</a>@endif<form method="post" action="/logout">@csrf<button class="btn small">Sign out</button></form>@else<a href="/#product">Platform</a><a href="/#clients">Clients</a><a href="/#partners">Partners</a><a href="/login">Log in</a><a class="btn small" href="/register">Get started ↗</a>@endauth</div></nav>
 
     @if(session('success') || $errors->any() || session('import_errors'))
         <div id="response-toast" class="response-toast {{ $errors->any() || session('import_errors') ? 'is-error' : 'is-success' }}" role="status" aria-live="polite">

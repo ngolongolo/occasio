@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Notifications\OkesheniResetPassword;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
@@ -35,7 +36,7 @@ class PasswordResetTest extends TestCase
             ->assertSessionHas('success');
 
         $token = null;
-        Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use (&$token) {
+        Notification::assertSentTo($user, OkesheniResetPassword::class, function (ResetPassword $notification) use (&$token) {
             $token = $notification->token;
             return true;
         });
@@ -52,6 +53,19 @@ class PasswordResetTest extends TestCase
         ])->assertRedirect(route('login'))->assertSessionHas('success');
 
         $this->assertTrue(Hash::check('new-secure-password', $user->fresh()->password));
+    }
+
+    public function test_password_reset_email_uses_okesheni_branding(): void
+    {
+        $user = User::create(['name' => 'Organiser', 'email' => 'organiser@example.com', 'password' => 'passwordlong']);
+        $mail = (new OkesheniResetPassword('test-token'))->toMail($user);
+        $html = $mail->render();
+
+        $this->assertSame('Reset your Okesheni password', $mail->subject);
+        $this->assertStringContainsString('Create a new password', $html);
+        $this->assertStringContainsString('#56283f', $html);
+        $this->assertStringContainsString('/assets/logo/logo_main.png', $html);
+        $this->assertStringContainsString('test-token', $html);
     }
 
     public function test_invalid_reset_token_is_rejected(): void

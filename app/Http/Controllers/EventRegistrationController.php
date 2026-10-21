@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -15,6 +16,18 @@ class EventRegistrationController
         $event = Event::where('registration_token', $token)->firstOrFail();
         abort_unless($event->participation_enabled, 404);
         return view('events.register', ['event' => $event, 'closed' => $event->responsesClosed()]);
+    }
+
+    public function card(string $token)
+    {
+        $event = Event::where('registration_token', $token)->firstOrFail();
+        abort_unless($event->participation_enabled, 404);
+        $path = $event->invitation_card_preview_path ?: $event->invitation_card_path;
+        abort_unless($path && Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->response($path, $event->invitation_card_name ?: 'invitation-card', [
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
     }
 
     public function store(Request $request, string $token)

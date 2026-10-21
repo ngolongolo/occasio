@@ -32,6 +32,11 @@ class Event extends Model
         return $this->hasMany(Invitee::class);
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function pledges()
     {
         return $this->hasManyThrough(Pledge::class, Invitee::class);

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\EventRegistrationController;
@@ -14,6 +15,7 @@ Route::get('/guest-template', fn () => response()->download(
     ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
 ))->name('guest-template');
 Route::get('/join/{token}', [EventRegistrationController::class, 'show'])->middleware('throttle:60,1')->name('events.registration.show');
+Route::get('/join/{token}/card', [EventRegistrationController::class, 'card'])->middleware('throttle:60,1')->name('events.registration.card');
 Route::post('/join/{token}', [EventRegistrationController::class, 'store'])->middleware('throttle:10,1')->name('events.registration.store');
 
 Route::middleware('guest')->group(function () {
@@ -30,8 +32,8 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/dashboard', [EventController::class, 'index']);
-    Route::view('/events/create', 'events.create');
-    Route::post('/events', [EventController::class, 'store']);
+    Route::view('/events/create', 'events.create')->middleware('organiser');
+    Route::post('/events', [EventController::class, 'store'])->middleware('organiser');
     Route::get('/events/{event}', [EventController::class, 'show'])->name('events.show');
     Route::get('/events/{event}/participants', [EventController::class, 'participants'])->name('events.participants');
     Route::get('/events/{event}/invitations', [EventController::class, 'invitations'])->name('events.invitations');
@@ -57,6 +59,14 @@ Route::middleware('auth')->group(function () {
     Route::put('/events/{event}/attendance', [EventController::class, 'bulkUpdateAttendance'])->name('events.attendance.bulk');
     Route::post('/events/{event}/thanks/{guest}', [EventController::class, 'sendThanks'])->name('events.thanks.send');
     Route::post('/events/{event}/thanks', [EventController::class, 'bulkSendThanks'])->name('events.thanks.bulk');
+    Route::middleware('super_admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/', [AdminController::class, 'index'])->name('index');
+        Route::get('/users', [AdminController::class, 'users'])->name('users');
+        Route::get('/events', [AdminController::class, 'events'])->name('events');
+        Route::get('/deliveries', [AdminController::class, 'deliveries'])->name('deliveries');
+        Route::get('/payments', [AdminController::class, 'payments'])->name('payments');
+        Route::put('/users/{user}/role', [AdminController::class, 'updateRole'])->name('users.role');
+    });
 });
 
 Route::get('/rsvp/{token}', [RsvpController::class, 'show'])->middleware('throttle:60,1')->name('rsvp.show');

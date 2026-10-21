@@ -16,11 +16,12 @@ class EventController
 {
     private function own(Event $event): void
     {
-        abort_unless((int) $event->user_id === (int) auth()->id(), 403);
+        abort_unless(auth()->user()->isSuperAdmin() || (int) $event->user_id === (int) auth()->id(), 403);
     }
 
     public function index()
     {
+        if (auth()->user()->isSuperAdmin()) return redirect()->route('admin.index');
         $events = auth()->user()->events()->withCount([
             'invitees',
             'invitees as accepted_count' => fn ($query) => $query->where('rsvp_status', 'accepted'),
@@ -56,8 +57,20 @@ class EventController
     }
 
     public function participants(Request $request, Event $event) { return $this->workspace($request, $event, 'participants'); }
-    public function invitations(Request $request, Event $event) { return $this->workspace($request, $event, 'invitations'); }
-    public function attendance(Request $request, Event $event) { abort_unless($event->participation_enabled, 404); return $this->workspace($request, $event, 'attendance'); }
+    public function invitations(Request $request, Event $event)
+    {
+        $this->own($event);
+
+        return redirect()->route('events.participants', $event);
+    }
+
+    public function attendance(Request $request, Event $event)
+    {
+        $this->own($event);
+        abort_unless($event->participation_enabled, 404);
+
+        return redirect()->route('events.participants', $event);
+    }
     public function pledges(Request $request, Event $event) { abort_unless($event->pledge_enabled, 404); return $this->workspace($request, $event, 'pledges'); }
 
     private function workspace(Request $request, Event $event, string $workspaceTab)
@@ -114,6 +127,14 @@ class EventController
     {
         $this->own($event);
         $data = $request->validate([
+            'title' => ['sometimes', 'required', 'string', 'max:180'],
+            'host' => ['sometimes', 'required', 'string', 'max:180'],
+            'description' => ['sometimes', 'required', 'string', 'max:5000'],
+            'starts_at' => ['sometimes', 'required', 'date'],
+            'rsvp_deadline' => ['sometimes', 'required', 'date', 'before_or_equal:starts_at'],
+            'venue' => ['sometimes', 'required', 'string', 'max:255'],
+            'dress_code' => ['nullable', 'string', 'max:180'],
+            'contact' => ['nullable', 'string', 'max:100'],
             'primary_color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'background_color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'text_color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
@@ -198,7 +219,7 @@ class EventController
 
         unset($data['logo'], $data['invitation_card'], $data['remove_logo'], $data['remove_invitation_card']);
         $event->update($data);
-        return redirect()->route('events.design', $event)->with('success', 'Invitation design saved.');
+        return redirect()->route('events.design', $event)->with('success', 'Event settings saved.');
     }
 
     public function downloadCard(Event $event)

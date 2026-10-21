@@ -3,7 +3,16 @@
 @section('content')
 <main class="public-registration" style="--event-primary:{{ $event->primary_color ?: '#56283f' }};--event-background:{{ $event->background_color ?: '#fcf9f4' }};--event-text:{{ $event->text_color ?: '#56283f' }}">
     <section class="registration-event">
-        <span class="eyebrow">{{ $event->host }}</span><p class="registration-kicker">You are invited</p><h1>{{ $event->title }}</h1><p>{{ $event->description }}</p>
+        @if($event->invitation_card_path)
+        <figure class="registration-invitation-card">
+            <img src="{{ route('events.registration.card', ['token' => $event->registration_token, 'v' => substr(sha1($event->invitation_card_path), 0, 12)]) }}" alt="{{ $event->title }} invitation">
+        </figure>
+        @endif
+        <span class="eyebrow">{{ $event->host }}</span><p class="registration-kicker">You are invited</p><h1>{{ $event->title }}</h1>
+        <div class="registration-description-wrap">
+            <p class="registration-description" id="registration-description">{{ $event->description }}</p>
+            <button class="registration-description-toggle" id="registration-description-toggle" type="button" aria-controls="registration-description" aria-expanded="false" hidden>Read more</button>
+        </div>
         <div class="registration-facts"><div><small>Date & time</small><strong>{{ $event->starts_at->format('d M Y · g:i A') }} EAT</strong></div><div><small>Venue</small><strong>{{ $event->venue }}</strong></div><div><small>RSVP deadline</small><strong>{{ $event->rsvp_deadline->format('d M Y') }}</strong></div></div>
         @if($event->dress_code)<p><strong>Dress code:</strong> {{ $event->dress_code }}</p>@endif
     </section>
@@ -29,4 +38,14 @@
         @if($event->contact)<p class="muted">Event contact: {{ $event->contact }}</p>@endif
     </section>
 </main>
+<script>
+    (function () {
+        const description=document.getElementById('registration-description'),toggle=document.getElementById('registration-description-toggle');
+        if(!description||!toggle)return;
+        const overflowing=description.scrollHeight>description.clientHeight+1;
+        if(!overflowing)return;
+        toggle.hidden=false;
+        toggle.addEventListener('click',function(){const expanded=description.classList.toggle('is-expanded');toggle.textContent=expanded?'Show less':'Read more';toggle.setAttribute('aria-expanded',expanded?'true':'false');});
+    }());
+</script>
 @endsection

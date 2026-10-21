@@ -1,10 +1,10 @@
 @extends('layout')
-@section('title', 'Invitation design · Okesheni')
+@section('title', 'Event settings · Okesheni')
 @section('content')
 <main class="design-studio-page">
     <header class="design-studio-hero">
-        <div><a href="{{ route('events.show',$event) }}">← Back to event</a><span class="eyebrow">{{ $event->title }}</span><h1>Invitation design</h1><p>Shape what guests see, how they respond, and which messages follow the event.</p></div>
-        <div class="design-event-chip"><small>Editing invitation for</small><strong>{{ $event->title }}</strong><span>{{ $event->starts_at->format('d M Y') }} · {{ $event->venue }}</span></div>
+        <div><a href="{{ route('events.show',$event) }}">← Back to event</a><span class="eyebrow">{{ $event->title }}</span><h1>Event settings</h1><p>Keep event details, invitation design, guest responses and follow-up messages in one place.</p></div>
+        <div class="design-event-chip"><small>Editing event</small><strong>{{ $event->title }}</strong><span>{{ $event->starts_at->format('d M Y') }} · {{ $event->venue }}</span></div>
     </header>
 
     @include('partials.alerts')
@@ -12,7 +12,7 @@
     <form class="design-studio" method="post" action="{{ route('events.design.update',$event) }}" enctype="multipart/form-data">
         @csrf @method('put')
         <aside class="design-studio-sidebar">
-            <nav aria-label="Invitation design sections"><span>Invitation setup</span><a href="#design-brand">01 · Brand & email</a><a href="#design-card">02 · Invitation image</a><a href="#design-response">03 · Guest response</a><a href="#design-sms">04 · SMS invitation</a><a href="#design-notifications">05 · Notifications</a></nav>
+            <nav aria-label="Event settings sections"><span>Event setup</span><a href="#event-details">01 · Event details</a><a href="#design-brand">02 · Brand & email</a><a href="#design-card">03 · Invitation image</a><a href="#design-response">04 · Guest response</a><a href="#design-sms">05 · SMS invitation</a><a href="#design-notifications">06 · Notifications</a></nav>
             <div id="invitation-palette-preview" class="studio-preview">
                 <small>Email preview</small>
                 @if($event->invitation_card_path)<img src="{{ route('events.design.card',$event) }}?v={{ substr(sha1($event->invitation_card_path),0,12) }}" alt="Current invitation image">@else<div class="studio-preview-mark">{{ strtoupper(mb_substr($event->title,0,1)) }}</div>@endif
@@ -21,33 +21,47 @@
         </aside>
 
         <div class="design-studio-canvas">
+            <details id="event-details" class="design-editor-card event-details-editor">
+                <summary class="design-card-heading"><span>01</span><div><h2>Event details</h2><p>Update the information shown across invitations, registration pages and notifications.</p></div><i class="event-details-toggle"><b class="when-open">Hide details</b><b class="when-closed">Show details</b></i></summary>
+                <div class="event-details-grid">
+                    <div class="wide"><label for="settings-title">Event title</label><input id="settings-title" name="title" value="{{ old('title',$event->title) }}" maxlength="180" required></div>
+                    <div class="wide"><label for="settings-host">Host or organisation</label><input id="settings-host" name="host" value="{{ old('host',$event->host) }}" maxlength="180" required></div>
+                    <div class="wide"><label for="settings-description">Invitation description</label><textarea id="settings-description" name="description" maxlength="5000" required>{{ old('description',$event->description) }}</textarea><small>Guests initially see the first three lines and can expand the full description.</small></div>
+                    <div><label for="settings-start">Start date and time</label><input id="settings-start" type="datetime-local" name="starts_at" value="{{ old('starts_at',$event->starts_at->format('Y-m-d\TH:i')) }}" required><small>Displayed in East Africa Time.</small></div>
+                    <div><label for="settings-deadline">Requested response date</label><input id="settings-deadline" type="date" name="rsvp_deadline" value="{{ old('rsvp_deadline',$event->rsvp_deadline->format('Y-m-d')) }}" required><small>Responses remain open until the event starts.</small></div>
+                    <div class="wide"><label for="settings-venue">Venue</label><input id="settings-venue" name="venue" value="{{ old('venue',$event->venue) }}" maxlength="255" required></div>
+                    <div><label for="settings-dress-code">Dress code</label><input id="settings-dress-code" name="dress_code" value="{{ old('dress_code',$event->dress_code) }}" maxlength="180" placeholder="Optional"></div>
+                    <div><label for="settings-contact">Coordinator contact</label><input id="settings-contact" name="contact" value="{{ old('contact',$event->contact) }}" maxlength="100" placeholder="Name, phone, or email"></div>
+                </div>
+            </details>
+
             <section id="design-brand" class="design-editor-card">
-                <div class="design-card-heading"><span>01</span><div><h2>Brand and email style</h2><p>Set the visual identity used in every invitation email.</p></div></div>
+                <div class="design-card-heading"><span>02</span><div><h2>Brand and email style</h2><p>Set the visual identity used in every invitation email.</p></div></div>
                 <div class="palette-grid"><label>Accent and button<input id="primary_color" type="color" name="primary_color" value="{{ old('primary_color',$event->primary_color ?: '#56283f') }}"></label><label>Email background<input id="background_color" type="color" name="background_color" value="{{ old('background_color',$event->background_color ?: '#fcf9f4') }}"></label><label>Text color<input id="text_color" type="color" name="text_color" value="{{ old('text_color',$event->text_color ?: '#30252a') }}"></label></div>
                 <div class="design-upload-field"><div><strong>Organization logo</strong><small>PNG or JPG · maximum 2 MB</small></div><label for="logo" class="upload-button">Choose logo</label><input id="logo" type="file" name="logo" accept=".png,.jpg,.jpeg,image/png,image/jpeg">@if($event->logo_path)<label class="check-row remove-asset"><input type="checkbox" name="remove_logo" value="1"> Remove current logo</label>@endif</div>
             </section>
 
             <section id="design-card" class="design-editor-card">
-                <div class="design-card-heading"><span>02</span><div><h2>Designed invitation image</h2><p>Place your artwork directly inside the email—not as a separate attachment.</p></div></div>
+                <div class="design-card-heading"><span>03</span><div><h2>Designed invitation image</h2><p>Place your artwork directly inside the email—not as a separate attachment.</p></div></div>
                 <div class="design-upload-zone"><div class="upload-zone-icon">▧</div><div><strong>{{ $event->invitation_card_path ? 'Replace invitation image' : 'Upload invitation image' }}</strong><p>PNG, JPG or JPEG · portrait artwork recommended · large images are optimized automatically</p><small id="invitation-image-status" aria-live="polite">Maximum uploaded size after optimization: 2 MB.</small>@if($event->invitation_card_path)<a href="{{ route('events.design.card',$event) }}?v={{ substr(sha1($event->invitation_card_path),0,12) }}">View current image: {{ $event->invitation_card_name }}</a>@endif</div><label for="invitation_card">Browse image</label><input id="invitation_card" type="file" name="invitation_card" accept=".png,.jpg,.jpeg,image/png,image/jpeg"></div>
                 @if($event->invitation_card_path)<label class="check-row remove-asset"><input type="checkbox" name="remove_invitation_card" value="1"> Remove the current invitation image</label>@endif
             </section>
 
             <section id="design-response" class="design-editor-card">
-                <div class="design-card-heading"><span>03</span><div><h2>Guest response</h2><p>Choose the actions available through each guest’s private link.</p></div></div>
+                <div class="design-card-heading"><span>04</span><div><h2>Guest response</h2><p>Choose the actions available through each guest’s private link.</p></div></div>
                 <input type="hidden" name="response_options_present" value="1">
                 <div class="response-choice-grid"><label><input type="checkbox" name="participation_enabled" value="1" @checked(old('participation_enabled',$event->participation_enabled))><span><b>Participation</b><small>Guests can accept or decline and confirm their party size.</small></span></label><label><input id="pledge-enabled" type="checkbox" name="pledge_enabled" value="1" @checked(old('pledge_enabled',$event->pledge_enabled))><span><b>Pledges</b><small>Guests can pledge support and view payment instructions.</small></span></label></div>
                 <div id="pledge-settings" class="pledge-settings" @if(!old('pledge_enabled',$event->pledge_enabled)) hidden @endif><div class="form-grid"><div><label for="pledge_currency">Pledge currency</label><input id="pledge_currency" name="pledge_currency" value="{{ old('pledge_currency',$event->pledge_currency ?: 'TZS') }}" maxlength="3" required></div></div><label for="pledge_message">Pledge message</label><textarea id="pledge_message" name="pledge_message" maxlength="2000" placeholder="Explain what the pledge will support.">{{ old('pledge_message',$event->pledge_message) }}</textarea><label for="payment_details">Payment instructions</label><textarea id="payment_details" name="payment_details" maxlength="5000" placeholder="Bank or mobile-money account name, number and instructions.">{{ old('payment_details',$event->payment_details) }}</textarea><small>These details appear only when pledges are enabled. Payments still require administrator verification.</small></div>
             </section>
 
             <section id="design-sms" class="design-editor-card">
-                <div class="design-card-heading"><span>04</span><div><h2>SMS invitation</h2><p>Keep the message concise. The private response link is always included.</p></div></div>
+                <div class="design-card-heading"><span>05</span><div><h2>SMS invitation</h2><p>Keep the message concise. The private response link is always included.</p></div></div>
                 <label for="sms_template">Message template</label><textarea id="sms_template" name="sms_template" maxlength="1000" required>{{ old('sms_template',$event->sms_template ?: $defaultSms) }}</textarea>
                 <div class="placeholder-list"><span>{guest_name}</span><span>{event_title}</span><span>{host}</span><span>{event_date}</span><span>{venue}</span><span>{rsvp_url}</span></div>
             </section>
 
             <section id="design-notifications" class="design-editor-card">
-                <div class="design-card-heading"><span>05</span><div><h2>Follow-up notifications</h2><p>Configure post-event messages. Open only the workflow you need.</p></div></div>
+                <div class="design-card-heading"><span>06</span><div><h2>Follow-up notifications</h2><p>Configure post-event messages. Open only the workflow you need.</p></div></div>
                 <input type="hidden" name="notification_options_present" value="1">
                 <div class="placeholder-help"><strong>Available personalization</strong><p><code>{guest_name}</code> <code>{event_title}</code> <code>{host}</code> <code>{event_date}</code> <code>{venue}</code> <code>{attended_count}</code> <span id="pledge-personalization" @if(!old('pledge_enabled',$event->pledge_enabled)) hidden @endif><code>{currency}</code> <code>{pledge_amount}</code> <code>{payment_amount}</code> <code>{paid_amount}</code> <code>{pledge_balance}</code> <code>{payment_reference}</code> <code>{payment_method}</code> <code>{payment_date}</code></span></p><small id="personalization-context">{{ old('pledge_enabled',$event->pledge_enabled) ? 'Includes event, attendance and pledge payment fields.' : 'Showing event and attendance fields. Enable Pledges to add payment fields.' }}</small></div>
 
@@ -58,11 +72,14 @@
                 <details class="notification-editor" @if(old('pledge_thanks_enabled',$event->pledge_thanks_enabled)) open @endif><summary><span><b>Fully-paid pledge thank-you</b><small>Send once a pledge has been completely paid</small></span><i>{{ $event->pledge_thanks_enabled ? 'Enabled' : 'Off' }}</i></summary><div class="notification-editor-body"><label class="switch-row"><input type="checkbox" name="pledge_thanks_enabled" value="1" @checked(old('pledge_thanks_enabled',$event->pledge_thanks_enabled))><span>Enable fully-paid pledge messages</span></label><div class="form-grid"><div><label>Send mode</label><select name="pledge_thanks_mode"><option value="manual" @selected(old('pledge_thanks_mode',$event->pledge_thanks_mode)==='manual')>Review and send manually</option><option value="automatic" @selected(old('pledge_thanks_mode',$event->pledge_thanks_mode)==='automatic')>Send when fully paid</option></select></div><div><label>Channels</label><div class="channel-checks"><label><input type="checkbox" name="pledge_thanks_email" value="1" @checked(old('pledge_thanks_email',$event->pledge_thanks_email))> Email</label><label><input type="checkbox" name="pledge_thanks_sms" value="1" @checked(old('pledge_thanks_sms',$event->pledge_thanks_sms))> SMS</label></div></div></div><label>Email subject</label><input name="pledge_email_subject" maxlength="180" value="{{ old('pledge_email_subject',$event->pledge_email_subject) }}" placeholder="Thank you for your pledge to {event_title}"><label>Email message</label><textarea name="pledge_email_message" maxlength="5000" placeholder="Dear {guest_name}, your pledge payment is complete.">{{ old('pledge_email_message',$event->pledge_email_message) }}</textarea><label>SMS message</label><textarea name="pledge_sms_message" maxlength="1000" placeholder="Thank you {guest_name}. Your pledge payment is confirmed.">{{ old('pledge_sms_message',$event->pledge_sms_message) }}</textarea></div></details>
             </section>
 
-            <div class="design-save-bar"><div><strong>Ready to update the invitation?</strong><small>Changes apply to future emails and guest response pages.</small></div><a class="btn secondary" href="{{ route('events.show',$event) }}">Cancel</a><button type="submit">Save invitation design</button></div>
+            <div class="design-save-bar"><div><strong>Ready to save your changes?</strong><small>Event and invitation updates apply immediately across guest pages.</small></div><a class="btn secondary" href="{{ route('events.show',$event) }}">Cancel</a><button type="submit">Save event settings</button></div>
         </div>
     </form>
 </main>
 <script>
+    const settingsStart=document.getElementById('settings-start'),settingsDeadline=document.getElementById('settings-deadline');
+    function syncSettingsDeadline(){if(!settingsStart.value)return;settingsDeadline.max=settingsStart.value.slice(0,10);}
+    settingsStart.addEventListener('change',syncSettingsDeadline);syncSettingsDeadline();
     const palettePreview=document.getElementById('invitation-palette-preview');
     function updatePalettePreview(){palettePreview.style.setProperty('--preview-accent',document.getElementById('primary_color').value);palettePreview.style.setProperty('--preview-background',document.getElementById('background_color').value);palettePreview.style.setProperty('--preview-text',document.getElementById('text_color').value);}
     ['primary_color','background_color','text_color'].forEach(function(id){document.getElementById(id).addEventListener('input',updatePalettePreview);});updatePalettePreview();

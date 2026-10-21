@@ -77,7 +77,7 @@ class GuestController
 
     private function authorizeEvent(Event $event): void
     {
-        abort_unless((int) $event->user_id === (int) auth()->id(), 403);
+        abort_unless(auth()->user()->isSuperAdmin() || (int) $event->user_id === (int) auth()->id(), 403);
     }
 
     private function authorizeGuest(Event $event, Invitee $guest): void
