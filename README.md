@@ -45,6 +45,16 @@ Statuses: queued → processing → submitted, previewed or failed. Submitted re
 
 Random 64-character bearer links; no invitee account needed. The RSVP date is a requested response date; organisers may continue sending invitations and guests may respond until the event starts in Africa/Dar_es_Salaam time. Seat limits are enforced server-side. Declines reset attending count to zero. Organisers can access only their own events. Registration/login and RSVP endpoints are rate limited; forms use CSRF protection and Blade escaping.
 
+## Venue map search
+
+Venue text remains the event's required location; attaching coordinates is optional. Organisers can run an explicit map search or place a pin, choose a suggested result, or keep their typed venue when no result matches. The app does not run keystroke autocomplete.
+
+Search uses the configurable Nominatim endpoint in `NOMINATIM_SEARCH_URL`, sends an identifying `NOMINATIM_USER_AGENT` and optional `NOMINATIM_CONTACT_EMAIL`, caches normalised searches, and enforces both per-user and app-wide rate limits. `NOMINATIM_COUNTRY_CODES=tz` favours Tanzania; set it to an empty value for worldwide search. For production volume, configure a managed or self-hosted compatible endpoint and follow that provider's terms. `MAP_TILE_URL` makes the Leaflet tile source switchable; the default OpenStreetMap services require visible attribution and compliance with their usage policies.
+
+## Snippe payments
+
+Set `SNIPPE_KEY` and `SNIPPE_WEBHOOK_SECRET` in `.env`. Configure `SNIPPE_WEBHOOK_BASE_URL` as either the public HTTPS origin or the complete `https://your-domain.example/api/snippe/webhook` URL. Payment and payout requests use `POST /api/snippe/webhook` for Snippe API version `2026-01-25`; the endpoint verifies the raw-body HMAC signature, five-minute timestamp window, event header, references, currency and amount before changing local records. Local HTTP development omits the webhook URL and uses payment-status polling instead.
+
 ## Production
 
 Use HTTPS, APP_ENV=production, APP_DEBUG=false and SESSION_SECURE_COOKIE=true. Configure a real database, SMTP and messaging credentials. Point web root at public/, never the project root. Keep queue:work under Supervisor/systemd. Run `php artisan config:cache` and `php artisan view:cache`. Back up the database and protect guest data. Secrets belong only in .env. Disable public account registration at route level if this is an invite-only service.

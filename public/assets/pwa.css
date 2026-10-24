@@ -1,0 +1,27 @@
+.pwa-install-button { background:transparent; border-color:#d4c5c9; color:var(--plum); font-size:11px; padding:8px 13px; }
+.pwa-install-button[hidden],.network-status[hidden] { display:none; }
+.network-status { background:#7f2c38; color:#fff; font-size:11px; font-weight:600; padding:8px 20px; position:sticky; text-align:center; top:0; z-index:1000; }
+.is-offline button[type=submit] { opacity:.65; }
+.site-nav-toggle { display:none; }
+.field-error-message { color:#9a2534; display:block; font-size:12px; font-weight:600; margin-top:7px; }
+input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="true"] { border-color:#a73343!important; box-shadow:0 0 0 3px #a7334314; }
+.invitation-art-details { border-top:1px solid #e4d3b9; margin-top:22px; padding-top:22px; text-align:left; }
+.invitation-art-details h2 { font-size:28px; margin:7px 0 10px; }
+.invitation-art-details>p { font-size:12px; }
+.invitation-art-details dl { border-top:1px solid #eee2d1; margin:18px 0 0; }
+.invitation-art-details dl div { border-bottom:1px solid #eee2d1; display:grid; gap:12px; grid-template-columns:110px 1fr; padding:10px 0; }
+.invitation-art-details dt { color:var(--muted); font-size:10px; font-weight:700; }
+.invitation-art-details dd { font-size:11px; font-weight:700; margin:0; }
+@media(max-width:800px) {
+    .pwa-install-button { padding:8px 10px; }
+    .site-nav { flex-wrap:wrap; position:relative; }
+    .site-nav-toggle { align-items:center; background:#fff; border-color:#d9ced2; color:var(--plum); display:inline-flex; gap:9px; padding:9px 12px; }
+    .site-nav-toggle i,.site-nav-toggle i::before,.site-nav-toggle i::after { background:currentColor; border-radius:2px; content:''; display:block; height:2px; position:relative; width:17px; }
+    .site-nav-toggle i::before { left:0; position:absolute; top:-5px; }
+    .site-nav-toggle i::after { left:0; position:absolute; top:5px; }
+    .site-nav .links { align-items:stretch; background:#fff; border:1px solid var(--line); border-radius:13px; box-shadow:0 18px 42px #30252a24; display:none; flex-direction:column; gap:4px; left:15px; padding:10px; position:absolute; right:15px; top:calc(100% - 8px); z-index:200; }
+    .site-nav .links.is-open { display:flex; }
+    .site-nav .links.is-open>a:not(.btn) { display:flex; }
+    .site-nav .links a,.site-nav .links form,.site-nav .links form button,.site-nav .links .btn { justify-content:flex-start; margin:0; width:100%; }
+    .site-nav .links>a { border-radius:8px; padding:10px 12px; }
+}

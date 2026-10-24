@@ -43,16 +43,17 @@ class PasswordResetTest extends TestCase
 
         $this->get(route('password.reset', ['token' => $token, 'email' => $user->email]))
             ->assertOk()
-            ->assertSee('Choose a new password');
+            ->assertSee('Choose a new password')
+            ->assertSee('Use at least 8 characters');
 
         $this->post(route('password.update'), [
             'token' => $token,
             'email' => $user->email,
-            'password' => 'new-secure-password',
-            'password_confirmation' => 'new-secure-password',
+            'password' => 'Passw0rd',
+            'password_confirmation' => 'Passw0rd',
         ])->assertRedirect(route('login'))->assertSessionHas('success');
 
-        $this->assertTrue(Hash::check('new-secure-password', $user->fresh()->password));
+        $this->assertTrue(Hash::check('Passw0rd', $user->fresh()->password));
     }
 
     public function test_password_reset_email_uses_okesheni_branding(): void

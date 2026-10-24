@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\Invitee;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -19,11 +20,46 @@ class GuestController
     public function store(Request $request, Event $event)
     {
         $this->authorizeEvent($event);
-        $data = $this->validated($request, $event);
-        $data['identity_key'] = $this->identityKey($data);
-        $data['token'] = Str::random(64);
-        $event->invitees()->create($data);
-        return redirect()->route('events.participants', $event)->with('success', 'Guest added successfully.');
+        if (! $request->has('participants')) {
+            $data = $this->validated($request, $event);
+            $data['identity_key'] = $this->identityKey($data);
+            $data['token'] = Str::random(64);
+            $event->invitees()->create($data);
+            return redirect()->route('events.participants', $event)->with('success', 'Participant added successfully.');
+        }
+
+        $request->merge(['participants' => collect($request->input('participants', []))->map(fn ($participant) => [
+            'name' => trim((string) ($participant['name'] ?? '')),
+            'email' => strtolower(trim((string) ($participant['email'] ?? ''))) ?: null,
+            'phone' => preg_replace('/[\s()\-]/', '', (string) ($participant['phone'] ?? '')) ?: null,
+            'max_guests' => $participant['max_guests'] ?? 1,
+        ])->values()->all()]);
+        $data = $request->validate([
+            'participants' => ['required', 'array', 'min:1', 'max:50'],
+            'participants.*.name' => ['required', 'string', 'max:150'],
+            'participants.*.email' => ['nullable', 'email', 'max:180', 'required_without:participants.*.phone'],
+            'participants.*.phone' => ['nullable', 'required_without:participants.*.email', 'regex:/^\+[1-9]\d{7,14}$/'],
+            'participants.*.max_guests' => ['required', 'integer', 'min:1', 'max:10'],
+        ], [], [
+            'participants.*.name' => 'participant name', 'participants.*.email' => 'participant email',
+            'participants.*.phone' => 'participant phone', 'participants.*.max_guests' => 'maximum guests',
+        ]);
+
+        $seen = [];
+        foreach ($data['participants'] as $index => $participant) {
+            $identity = $this->identityKey($participant);
+            if (isset($seen[$identity]) || $event->invitees()->where('identity_key', $identity)->exists()) {
+                throw ValidationException::withMessages(["participants.{$index}.email" => 'A participant with these contact details already exists.']);
+            }
+            $seen[$identity] = true;
+        }
+        DB::transaction(function () use ($event, $data) {
+            foreach ($data['participants'] as $participant) {
+                $event->invitees()->create($participant + ['identity_key' => $this->identityKey($participant), 'token' => Str::random(64)]);
+            }
+        });
+        $count = count($data['participants']);
+        return redirect()->route('events.participants', $event)->with('success', "{$count} participant".($count === 1 ? '' : 's').' added successfully.');
     }
 
     public function edit(Event $event, Invitee $guest)
@@ -77,7 +113,10 @@ class GuestController
 
     private function authorizeEvent(Event $event): void
     {
-        abort_unless(auth()->user()->isSuperAdmin() || (int) $event->user_id === (int) auth()->id(), 403);
+        if ((int) $event->user_id === (int) auth()->id()) return;
+
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+        abort_unless(request()->isMethodSafe(), 403, 'System Admin oversight is read-only. Use an explicit admin control for changes.');
     }
 
     private function authorizeGuest(Event $event, Invitee $guest): void

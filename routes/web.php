@@ -1,14 +1,28 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdminOrganiserVerificationController;
+use App\Http\Controllers\AccessPassController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\CheckInController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\EventRegistrationController;
+use App\Http\Controllers\EventAccessController;
 use App\Http\Controllers\GuestController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\OrganiserVerificationController;
 use App\Http\Controllers\RsvpController;
+use App\Http\Controllers\SettlementController;
+use App\Http\Controllers\VenueSearchController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing')->name('home');
+Route::post('/language', LocaleController::class)->middleware('throttle:30,1,language')->name('language.update');
+Route::get('/find-event', [EventRegistrationController::class, 'find'])->middleware('throttle:30,1')->name('events.public.find');
+Route::get('/occasion/{code}', [EventAccessController::class, 'show'])->middleware('throttle:60,1')->name('events.access.show');
+Route::post('/occasion/{code}/request-code', [EventAccessController::class, 'requestCode'])->middleware('throttle:5,1')->name('events.access.request');
+Route::post('/occasion/{code}/verify', [EventAccessController::class, 'verify'])->middleware('throttle:10,1')->name('events.access.verify');
 Route::get('/guest-template', fn () => response()->download(
     base_path('samples/guest-import.xlsx'),
     'okesheni-guest-import-template.xlsx',
@@ -16,28 +30,38 @@ Route::get('/guest-template', fn () => response()->download(
 ))->name('guest-template');
 Route::get('/join/{token}', [EventRegistrationController::class, 'show'])->middleware('throttle:60,1')->name('events.registration.show');
 Route::get('/join/{token}/card', [EventRegistrationController::class, 'card'])->middleware('throttle:60,1')->name('events.registration.card');
+Route::get('/join/{token}/logo', [EventRegistrationController::class, 'logo'])->middleware('throttle:60,1')->name('events.registration.logo');
 Route::post('/join/{token}', [EventRegistrationController::class, 'store'])->middleware('throttle:10,1')->name('events.registration.store');
 
 Route::middleware('guest')->group(function () {
     Route::view('/login', 'auth.form', ['register' => false])->name('login');
     Route::view('/register', 'auth.form', ['register' => true]);
-    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
-    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1,login');
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1,register');
     Route::get('/forgot-password', [AuthController::class, 'forgotPassword'])->name('password.request');
-    Route::post('/forgot-password', [AuthController::class, 'emailResetLink'])->middleware('throttle:5,1')->name('password.email');
+    Route::post('/forgot-password', [AuthController::class, 'emailResetLink'])->middleware('throttle:5,1,password-email')->name('password.email');
     Route::get('/reset-password/{token}', [AuthController::class, 'resetPassword'])->name('password.reset');
-    Route::post('/reset-password', [AuthController::class, 'updatePassword'])->middleware('throttle:5,1')->name('password.update');
+    Route::post('/reset-password', [AuthController::class, 'updatePassword'])->middleware('throttle:5,1,password-update')->name('password.update');
 });
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/dashboard', [EventController::class, 'index']);
+    Route::get('/venues/search', VenueSearchController::class)->middleware(['organiser', 'throttle:10,1'])->name('venues.search');
     Route::view('/events/create', 'events.create')->middleware('organiser');
+    Route::get('/organiser/verification', [OrganiserVerificationController::class, 'show'])->middleware('organiser')->name('organiser.verification.show');
+    Route::post('/organiser/verification', [OrganiserVerificationController::class, 'store'])->middleware(['organiser', 'throttle:5,1'])->name('organiser.verification.store');
     Route::post('/events', [EventController::class, 'store'])->middleware('organiser');
     Route::get('/events/{event}', [EventController::class, 'show'])->name('events.show');
     Route::get('/events/{event}/participants', [EventController::class, 'participants'])->name('events.participants');
+    Route::get('/events/{event}/payments', [EventController::class, 'payments'])->name('events.payments');
     Route::get('/events/{event}/invitations', [EventController::class, 'invitations'])->name('events.invitations');
     Route::get('/events/{event}/attendance', [EventController::class, 'attendance'])->name('events.attendance');
+    Route::get('/events/{event}/scanner', [CheckInController::class, 'scanner'])->name('events.scanner');
+    Route::post('/events/{event}/settlements', [SettlementController::class, 'store'])->middleware('throttle:5,1')->name('events.settlements.store');
+    Route::put('/events/{event}/guests/{guest}/access-pass', [CheckInController::class, 'regenerate'])->name('events.access-pass.regenerate');
+    Route::get('/check-in/{token}', [CheckInController::class, 'show'])->middleware('throttle:120,1')->name('check-in.show');
+    Route::post('/check-in/{token}', [CheckInController::class, 'store'])->middleware('throttle:60,1')->name('check-in.store');
     Route::get('/events/{event}/pledges', [EventController::class, 'pledges'])->name('events.pledges');
     Route::get('/events/{event}/design', [EventController::class, 'design'])->name('events.design');
     Route::put('/events/{event}/design', [EventController::class, 'updateDesign'])->name('events.design.update');
@@ -50,6 +74,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/events/{event}/import', [EventController::class, 'import'])->middleware('throttle:10,1')->name('events.import');
     Route::post('/events/{event}/send', [EventController::class, 'send'])->middleware('throttle:5,1')->name('events.send');
     Route::get('/events/{event}/export', [EventController::class, 'export'])->name('events.export');
+    Route::put('/events/{event}/participation-payments/{guest}', [EventController::class, 'updateParticipationPayment'])->name('events.participation-payments.update');
+    Route::put('/events/{event}/rsvp-confirmations/{guest}', [EventController::class, 'updateRsvpConfirmation'])->name('events.rsvp-confirmations.update');
     Route::put('/events/{event}/pledges/{pledge}', [EventController::class, 'updatePledge'])->name('events.pledges.update');
     Route::get('/events/{event}/pledges/{pledge}/payments/create', [EventController::class, 'createPledgePayment'])->name('events.pledge-payments.create');
     Route::post('/events/{event}/pledges/{pledge}/payments', [EventController::class, 'recordPledgePayment'])->name('events.pledge-payments.store');
@@ -65,10 +91,23 @@ Route::middleware('auth')->group(function () {
         Route::get('/events', [AdminController::class, 'events'])->name('events');
         Route::get('/deliveries', [AdminController::class, 'deliveries'])->name('deliveries');
         Route::get('/payments', [AdminController::class, 'payments'])->name('payments');
+        Route::get('/settlements', [AdminController::class, 'settlements'])->name('settlements');
+        Route::get('/pledges', [AdminController::class, 'pledges'])->name('pledges');
+        Route::get('/audit-log', [AdminController::class, 'audit'])->name('audit.index');
+        Route::get('/verifications', [AdminOrganiserVerificationController::class, 'index'])->name('verifications.index');
+        Route::get('/verifications/{user}', [AdminOrganiserVerificationController::class, 'show'])->name('verifications.show');
+        Route::put('/verifications/{user}/review', [AdminOrganiserVerificationController::class, 'review'])->name('verifications.review');
         Route::put('/users/{user}/role', [AdminController::class, 'updateRole'])->name('users.role');
+        Route::put('/users/{user}/verification', [AdminOrganiserVerificationController::class, 'legacyUpdate'])->name('users.verification');
     });
 });
 
 Route::get('/rsvp/{token}', [RsvpController::class, 'show'])->middleware('throttle:60,1')->name('rsvp.show');
 Route::get('/rsvp/{token}/card', [RsvpController::class, 'card'])->middleware('throttle:60,1')->name('rsvp.card');
+Route::get('/rsvp/{token}/logo', [RsvpController::class, 'logo'])->middleware('throttle:60,1')->name('rsvp.logo');
+Route::get('/rsvp/{token}/payment', [PaymentController::class, 'show'])->middleware('throttle:60,1')->name('rsvp.payment.show');
+Route::get('/rsvp/{token}/payment/status', [PaymentController::class, 'status'])->middleware('throttle:60,1')->name('rsvp.payment.status');
+Route::get('/rsvp/{token}/pass', [AccessPassController::class, 'show'])->middleware('throttle:60,1')->name('rsvp.pass.show');
+Route::get('/rsvp/{token}/pass/qr', [AccessPassController::class, 'qr'])->middleware('throttle:60,1')->name('rsvp.pass.qr');
 Route::post('/rsvp/{token}', [RsvpController::class, 'update'])->middleware('throttle:15,1');
+Route::post('/rsvp/{token}/payment', [PaymentController::class, 'store'])->middleware('throttle:5,1')->name('rsvp.payment.store');
